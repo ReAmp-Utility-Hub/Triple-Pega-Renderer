@@ -49,13 +49,16 @@ function App() {
       if (!response.ok) throw new Error("Auth failed");
       const data = await response.json();
       setToken(data.access_token);
+      // Automatically trigger case creation
+      createCase(data.access_token);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const createCase = async () => {
-    if (!token) return;
+  const createCase = async (passedToken) => {
+    const activeToken = typeof passedToken === "string" ? passedToken : token;
+    if (!activeToken) return;
     setLoading(true);
     setStep("LOADING");
     try {
@@ -63,7 +66,7 @@ function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${activeToken}`,
         },
         body: JSON.stringify({
           content: { pyLabel: "Case Creation" },
