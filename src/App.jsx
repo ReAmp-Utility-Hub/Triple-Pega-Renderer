@@ -25,6 +25,7 @@ function App() {
   });
   const [validationErrors, setValidationErrors] = useState([]);
   const [confirmation, setConfirmation] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Configuring context...");
   const authRef = useRef(false);
 
   const [buttons, setButtons] = useState({ main: [], secondary: [] });
@@ -36,6 +37,9 @@ function App() {
   }, []);
 
   const autoAuthenticate = async () => {
+    setLoading(true);
+    setStep("LOADING");
+    setLoadingMessage("Authenticating with Pega...");
     try {
       const params = new URLSearchParams();
       params.append("grant_type", "client_credentials");
@@ -49,10 +53,12 @@ function App() {
       if (!response.ok) throw new Error("Auth failed");
       const data = await response.json();
       setToken(data.access_token);
-      // Automatically trigger case creation
       createCase(data.access_token);
     } catch (err) {
       console.error(err);
+      setStep("INIT");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,6 +67,7 @@ function App() {
     if (!activeToken) return;
     setLoading(true);
     setStep("LOADING");
+    setLoadingMessage("Initializing assessment...");
     try {
       const response = await fetch(`${API_BASE}/cases`, {
         method: "POST",
@@ -356,7 +363,7 @@ function App() {
       {step === "LOADING" && (
         <div className="loading-container fade-in">
           <div className="loading-spinner"></div>
-          <p className="subtitle">Configuring context...</p>
+          <p className="subtitle">{loadingMessage}</p>
         </div>
       )}
 
