@@ -25,7 +25,9 @@ function App() {
   });
   const [validationErrors, setValidationErrors] = useState([]);
   const [confirmation, setConfirmation] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState("Configuring context...");
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Configuring context...",
+  );
   const authRef = useRef(false);
 
   const [buttons, setButtons] = useState({ main: [], secondary: [] });
@@ -50,13 +52,18 @@ function App() {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params,
       });
-      if (!response.ok) throw new Error("Auth failed");
+      if (!response.ok) {
+        throw new Error(`Auth failed with status: ${response.status}`);
+      }
       const data = await response.json();
       setToken(data.access_token);
       createCase(data.access_token);
     } catch (err) {
       console.error(err);
-      setStep("INIT");
+      setLoadingMessage(
+        `Error: ${err.message}. Please check if the Pega instance is online.`,
+      );
+      setTimeout(() => setStep("INIT"), 3000);
     } finally {
       setLoading(false);
     }
@@ -145,7 +152,6 @@ function App() {
             const rawType = fieldObj.type || fieldMetadata.type || "";
             const typeLower = rawType.toLowerCase();
 
-            // Determine the structural category of the component
             let category = "input";
             if (selectionTypes.includes(typeLower)) category = "select";
             else if (typeLower === "textarea") category = "textarea";
@@ -168,7 +174,7 @@ function App() {
               config: fieldObj.config,
               iconLeft: typeLower === "currency" ? "$" : null,
               iconRight: typeLower === "percentage" ? "%" : null,
-              options: fieldMetadata.options || [], // Capture options for dropdowns/radios
+              options: fieldMetadata.options || [],
             });
           }
         });
@@ -419,7 +425,6 @@ function App() {
                           e.erroneousInputOutputIdentifier === `.${field.name}`,
                       );
 
-                      // Handle custom QR Code component
                       if (field.category === "qrcode") {
                         const qrValueProperty =
                           field.config?.inputProperty?.replace("@P .", "") ||
@@ -454,7 +459,6 @@ function App() {
                         );
                       }
 
-                      // Render based on component category
                       return (
                         <div
                           className={`form-group ${field.category === "checkbox" ? "checkbox-group" : ""}`}
