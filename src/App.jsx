@@ -96,7 +96,7 @@ function App() {
       const data = await response.json();
       const assId = data.nextAssignmentInfo.ID;
       setAssignmentId(assId);
-      getAssignmentDetails(assId);
+      getAssignmentDetails(assId, activeToken);
     } catch (err) {
       console.error(err);
       setStep("INIT");
@@ -105,12 +105,13 @@ function App() {
     }
   };
 
-  const getAssignmentDetails = async (id) => {
+  const getAssignmentDetails = async (id, passedToken) => {
+    const activeToken = passedToken || token;
     try {
       const response = await fetch(
         `${API_BASE}/assignments/${id}?viewType=form`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${activeToken}` },
         },
       );
       const data = await response.json();
