@@ -5,6 +5,7 @@ const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
 const API_BASE = import.meta.env.VITE_API_BASE;
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
+const CASE_TYPE_ID = import.meta.env.VITE_CASE_TYPE_ID;
 
 function App() {
   const [step, setStep] = useState("INIT");
@@ -84,7 +85,7 @@ function App() {
         },
         body: JSON.stringify({
           content: { pyLabel: "Case Creation" },
-          caseTypeID: "OQ7AIU-Smart-Work-RetirementCalculator",
+          caseTypeID: CASE_TYPE_ID,
         }),
       });
       if (response.status === 401) {
