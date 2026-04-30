@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
@@ -34,7 +34,7 @@ jobs:
           VITE_BASE_HOST: ${{ secrets.VITE_BASE_HOST }}
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
           VITE_TOKEN_URL: ${{ secrets.VITE_TOKEN_URL }}
-
+          VITE_CASE_TYPE_ID: ${{ secrets.VITE_CASE_TYPE_ID }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
