@@ -335,7 +335,7 @@ function App() {
           type:
             caseInfo.caseTypeName ||
             (activeFlow === "RETIREMENT"
-              ? "Triple Renderer"
+              ? "Retirement Calculator"
               : "Purchase Vehicle"),
           businessID: caseInfo.businessID || caseInfo.ID.split(" ").pop(),
         });
