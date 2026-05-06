@@ -276,9 +276,7 @@ function App() {
   const [loadingMessage, setLoadingMessage] = useState(
     "Configuring context...",
   );
-
   const [viewFields, setViewFields] = useState([]);
-
   const [viewStructure, setViewStructure] = useState(null);
   const [uiResources, setUiResources] = useState(null);
   const [availableVehicles, setAvailableVehicles] = useState([]);
@@ -496,36 +494,42 @@ function App() {
     [getAssignmentDetails, token],
   );
 
-  const autoAuthenticate = useCallback(async (startFlow = "RETIREMENT") => {
-    setLoading(true);
-    setStep("LOADING");
-    setLoadingMessage("Authenticating with Pega...");
-    try {
-      const params = new URLSearchParams();
-      params.append("grant_type", "client_credentials");
-      params.append("client_id", CLIENT_ID);
-      params.append("client_secret", CLIENT_SECRET);
-      const response = await fetch(TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params,
-      });
-      if (!response.ok)
-        throw new Error(`Auth failed with status: ${response.status}`);
-      const data = await response.json();
-      setToken(data.access_token);
+  const autoAuthenticate = useCallback(
+    async (startFlow = "RETIREMENT") => {
+      setLoading(true);
+      setStep("LOADING");
+      setLoadingMessage("Authenticating with Pega...");
+      try {
+        const params = new URLSearchParams();
+        params.append("grant_type", "client_credentials");
+        params.append("client_id", CLIENT_ID);
+        params.append("client_secret", CLIENT_SECRET);
+        const response = await fetch(TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params,
+        });
+        if (!response.ok)
+          throw new Error(`Auth failed with status: ${response.status}`);
+        const data = await response.json();
+        setToken(data.access_token);
 
-      const caseTypeId = startFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
-      setActiveFlow(startFlow);
-      createCase(caseTypeId, data.access_token);
-    } catch (err) {
-      console.error(err);
-      setLoadingMessage(`Error: ${err.message}`);
-      setTimeout(() => setStep("INIT"), 3000);
-    } finally {
-      setLoading(false);
-    }
-  }, [createCase]);
+        const caseTypeId =
+          startFlow === "RETIREMENT"
+            ? RETIREMENT_CASE_TYPE_ID
+            : PURCHASE_CASE_TYPE_ID;
+        setActiveFlow(startFlow);
+        createCase(caseTypeId, data.access_token);
+      } catch (err) {
+        console.error(err);
+        setLoadingMessage(`Error: ${err.message}`);
+        setTimeout(() => setStep("INIT"), 3000);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [createCase],
+  );
 
   useEffect(() => {
     autoAuthenticateRef.current = autoAuthenticate;
