@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 import InspectionDemo from "./InspectionDemo";
+import PurchaseVehicleDemo from "./PurchaseVehicleDemo";
 
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
@@ -419,7 +420,7 @@ const renderNestedForm = (
 };
 
 function App() {
-  const [activeDemo, setActiveDemo] = useState("RETIREMENT_PURCHASE");
+  const [activeDemo, setActiveDemo] = useState("PURCHASE");
   const [step, setStep] = useState("INIT");
   const [activeFlow, setActiveFlow] = useState("RETIREMENT");
   const [flowSequence, setFlowSequence] = useState([
@@ -811,10 +812,10 @@ function App() {
   }, [autoAuthenticate]);
 
   useEffect(() => {
-    if (authRef.current) return;
+    if (authRef.current || activeDemo !== "RETIREMENT_PURCHASE") return;
     authRef.current = true;
     autoAuthenticate();
-  }, [autoAuthenticate]);
+  }, [autoAuthenticate, activeDemo]);
 
   const submitAction = async (e) => {
     if (e) e.preventDefault();
@@ -1034,22 +1035,32 @@ function App() {
       <div className="btn-group-vertical">
         <button
           className="btn btn-primary"
-          onClick={() => setActiveDemo("RETIREMENT_PURCHASE")}
+          onClick={() => setActiveDemo("PURCHASE")}
         >
-          Retirement + Purchase Flow
+          Purchase Vehicle Flow
         </button>
         <button
           className="btn btn-outline"
           onClick={() => setActiveDemo("INSPECTION")}
         >
-          Smart Property Inspection (DX API Demo)
+          Smart Property Inspection
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setActiveDemo("RETIREMENT_PURCHASE")}
+        >
+          Legacy Multi-Flow (Retirement + Purchase)
         </button>
       </div>
     </div>
   );
 
   if (activeDemo === "INSPECTION") {
-    return <InspectionDemo />;
+    return <InspectionDemo onBack={() => setActiveDemo("MENU")} />;
+  }
+
+  if (activeDemo === "PURCHASE") {
+    return <PurchaseVehicleDemo onBack={() => setActiveDemo("MENU")} />;
   }
 
   return (
@@ -1089,7 +1100,7 @@ function App() {
         </div>
       )}
 
-      {(step === "ASSIGNMENT_READY" || step === "FORM") && (
+      {activeDemo === "RETIREMENT_PURCHASE" && (step === "ASSIGNMENT_READY" || step === "FORM") && (
         <>
           <nav className="top-nav">
             <div className="nav-left">
