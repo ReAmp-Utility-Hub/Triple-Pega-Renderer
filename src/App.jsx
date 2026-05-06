@@ -223,6 +223,14 @@ const renderNestedForm = (
         const label = cleanPegaStr(child.config?.label);
         const columns = child.config?.detailsDisplay || [];
         const referenceList = child.config?.referenceList || "";
+        const selectionListProp = (child.config?.selectionList || "").replace(
+          /^\./,
+          "",
+        );
+        const rowsData = Array.isArray(formData[selectionListProp])
+          ? formData[selectionListProp]
+          : [];
+
         return (
           <div key={key} className="simple-table-select-wrapper">
             {label && <h4 className="group-heading">{label}</h4>}
@@ -235,21 +243,41 @@ const renderNestedForm = (
                         {cleanPegaStr(col.config?.label || col.config?.value)}
                       </th>
                     ))}
-                    {columns.length === 0 && (
-                      <th>{referenceList || "Data"}</th>
-                    )}
+                    {columns.length === 0 && <th>{referenceList || "Data"}</th>}
                     <th>Select</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td
-                      colSpan={(columns.length || 1) + 1}
-                      style={{ textAlign: "center", padding: "1.5rem", opacity: 0.6 }}
-                    >
-                      No {label || "records"} available
-                    </td>
-                  </tr>
+                  {rowsData.length > 0 ? (
+                    rowsData.map((row, rIdx) => (
+                      <tr key={rIdx} className="action-row">
+                        {columns.length > 0 ? (
+                          columns.map((col, cIdx) => {
+                            const fieldName = cleanPegaStr(col.config?.value);
+                            return <td key={cIdx}>{row[fieldName] || ""}</td>;
+                          })
+                        ) : (
+                          <td>{JSON.stringify(row)}</td>
+                        )}
+                        <td>
+                          <input type="checkbox" disabled />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={(columns.length || 1) + 1}
+                        style={{
+                          textAlign: "center",
+                          padding: "1.5rem",
+                          opacity: 0.6,
+                        }}
+                      >
+                        No {label || "records"} available
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -266,7 +294,10 @@ const renderNestedForm = (
         return (
           <div key={key} className="defer-load-placeholder">
             {label && <span className="sidebar-label">{label}</span>}
-            <span className="sidebar-value" style={{ opacity: 0.5, fontSize: "0.8rem" }}>
+            <span
+              className="sidebar-value"
+              style={{ opacity: 0.5, fontSize: "0.8rem" }}
+            >
               Content loads on demand
             </span>
           </div>
@@ -664,7 +695,11 @@ function App() {
   const submitAction = async (e) => {
     if (e) e.preventDefault();
 
-    if (activeFlow === "PURCHASE" && actionId === "SelectVehicle" && !selectedVehicleId) {
+    if (
+      activeFlow === "PURCHASE" &&
+      actionId === "SelectVehicle" &&
+      !selectedVehicleId
+    ) {
       alert("Please select a vehicle");
       return;
     }
