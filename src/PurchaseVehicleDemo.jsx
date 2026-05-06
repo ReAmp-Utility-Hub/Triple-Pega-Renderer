@@ -267,9 +267,25 @@ export default function PurchaseVehicleDemo({ onBack }) {
       }
       payload = { SelectedVehicleID: selectedVehicleId };
     } else {
+      // Re-construct nested payload from flat formData
+      // Only send fields that are NOT read-only
+      const editableFields = [];
+      uiElements.forEach((el) => {
+        if (el.type === "Group") {
+          el.children.forEach((c) => {
+            if (!c.readOnly) editableFields.push(c.name);
+          });
+        } else if (!el.readOnly && !el.isBanner) {
+          editableFields.push(el.name);
+        }
+      });
+
       const unflatten = (data) => {
         const result = {};
         Object.keys(data).forEach((key) => {
+          // Skip if field is read-only or not in uiElements
+          if (!editableFields.includes(key)) return;
+
           const keyParts = key.split(".");
           const isMetadata = keyParts.some(
             (part) =>
