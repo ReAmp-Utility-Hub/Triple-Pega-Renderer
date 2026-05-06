@@ -444,7 +444,7 @@ function App() {
       setLoadingMessage("Initializing case...");
 
       try {
-        const response = await fetch(`${API_BASE}/cases`, {
+        const response = await fetch(`${API_BASE}/cases?viewType=none`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -485,7 +485,7 @@ function App() {
 
         const assId = resData.nextAssignmentInfo.ID;
         setAssignmentId(assId);
-        getAssignmentDetails(assId, activeToken, caseTypeId);
+        getAssignmentDetails(assId, activeToken);
       } catch (err) {
         console.error(err);
         setStep("INIT");
@@ -496,7 +496,7 @@ function App() {
     [getAssignmentDetails, token],
   );
 
-  const autoAuthenticate = useCallback(async () => {
+  const autoAuthenticate = useCallback(async (startFlow = "RETIREMENT") => {
     setLoading(true);
     setStep("LOADING");
     setLoadingMessage("Authenticating with Pega...");
@@ -515,7 +515,9 @@ function App() {
       const data = await response.json();
       setToken(data.access_token);
 
-      createCase(RETIREMENT_CASE_TYPE_ID, data.access_token);
+      const caseTypeId = startFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
+      setActiveFlow(startFlow);
+      createCase(caseTypeId, data.access_token);
     } catch (err) {
       console.error(err);
       setLoadingMessage(`Error: ${err.message}`);
@@ -571,7 +573,7 @@ function App() {
         activeFlow === "PURCHASE"
           ? { ...formData, SelectedVehicleID: selectedVehicleId }
           : formData;
-      const method = activeFlow === "RETIREMENT" ? "PATCH" : "POST";
+      const method = "PATCH";
 
       const response = await fetch(
         `${API_BASE}/assignments/${assignmentId}/actions/${actionId}?viewType=none`,
@@ -580,7 +582,7 @@ function App() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-            ...(activeFlow === "RETIREMENT" ? { "If-Match": etag } : {}),
+            ...(etag ? { "If-Match": etag } : {}),
           },
           body: JSON.stringify({ content: payload }),
         },
@@ -609,7 +611,14 @@ function App() {
         return;
       }
 
-      if (activeFlow === "RETIREMENT") {
+      if (resData?.nextAssignmentInfo?.ID) {
+        const nextAssId = resData.nextAssignmentInfo.ID;
+        setAssignmentId(nextAssId);
+        if (activeFlow === "RETIREMENT") {
+          setActiveFlow("PURCHASE");
+        }
+        getAssignmentDetails(nextAssId, token);
+      } else if (activeFlow === "RETIREMENT") {
         setActiveFlow("PURCHASE");
         createCase(PURCHASE_CASE_TYPE_ID, token);
       } else {
@@ -685,17 +694,30 @@ function App() {
       {step === "INIT" && (
         <div className="loading-container fade-in">
           <h1>Triple Renderer Hub</h1>
-          <button
-            className="btn btn-primary"
-            onClick={autoAuthenticate}
-            disabled={loading}
-          >
-            {loading ? (
-              <div className="loading-spinner"></div>
-            ) : (
-              "START ASSESSMENT"
-            )}
-          </button>
+          <div className="btn-group-vertical">
+            <button
+              className="btn btn-primary"
+              onClick={() => autoAuthenticate("RETIREMENT")}
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="loading-spinner"></div>
+              ) : (
+                "START RETIREMENT"
+              )}
+            </button>
+            <button
+              className="btn btn-outline"
+              onClick={() => autoAuthenticate("PURCHASE")}
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="loading-spinner"></div>
+              ) : (
+                "START PURCHASE"
+              )}
+            </button>
+          </div>
         </div>
       )}
 
