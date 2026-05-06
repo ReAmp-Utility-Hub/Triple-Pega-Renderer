@@ -634,7 +634,9 @@ export default function PurchaseVehicleDemo({ onBack }) {
                   .filter((e) => {
                     // Filter out errors that are already mapped to specific fields
                     const fieldNames = uiElements.flatMap((el) =>
-                      el.type === "Group" ? el.children.map((c) => c.name) : [el.name],
+                      el.type === "Group"
+                        ? el.children.map((c) => c.name)
+                        : [el.name],
                     );
                     return !fieldNames.some(
                       (name) => e.erroneousInputOutputIdentifier === `.${name}`,
