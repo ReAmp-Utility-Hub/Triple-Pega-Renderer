@@ -6,17 +6,15 @@ const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
 const CASE_TYPE_ID = import.meta.env.VITE_PURCHASE_CASE_TYPE_ID;
 
-/* ── helpers ─────────────────────────────────────────────────── */
 const cleanLabel = (s = "") => {
   let cleaned = s
     .replace(/^@(FL|L)\s*\.?/, "")
     .replace(/AvailableVehicles\./g, "")
     .replace(/SeletedVehicle\./g, "")
     .replace(/Engine\./g, "");
-  
-  // If it's still a dotted path, take the last part for a cleaner field label
-  if (cleaned.includes('.') && !cleaned.includes(' ')) {
-    cleaned = cleaned.split('.').pop();
+
+  if (cleaned.includes(".") && !cleaned.includes(" ")) {
+    cleaned = cleaned.split(".").pop();
   }
   return cleaned;
 };
@@ -55,7 +53,6 @@ function extractUIElements(resources, viewName) {
           readOnly: n.config?.readOnly || false,
         });
       } else if (n.type === "reference" && n.config?.type === "view") {
-        // Nested view reference
         const nestedElements = extractUIElements(resources, n.config.name);
         elements.push(...nestedElements);
       }
@@ -119,7 +116,6 @@ function getNestedVal(obj, path) {
   return path.split(".").reduce((a, k) => a?.[k], obj) ?? "";
 }
 
-/* ── component ───────────────────────────────────────────────── */
 export default function PurchaseVehicleDemo({ onBack }) {
   const [phase, setPhase] = useState("INIT");
   const [loadingMsg, setLoadingMsg] = useState("Starting...");
@@ -132,15 +128,16 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
   const [caseDetails, setCaseDetails] = useState({});
   const [navSteps, setNavSteps] = useState([]);
-  const [actionButtons, setActionButtons] = useState({ main: [], secondary: [] });
+  const [actionButtons, setActionButtons] = useState({
+    main: [],
+    secondary: [],
+  });
 
-  // UI State
   const [uiElements, setUiElements] = useState([]);
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState([]);
   const [contentData, setContentData] = useState({});
 
-  // Form 2 Specific
   const [availableVehicles, setAvailableVehicles] = useState([]);
   const [compareRows, setCompareRows] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
@@ -153,7 +150,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }));
   };
 
-  /* ── getAssignment ── */
   const getAssignment = useCallback(async (assId, tok) => {
     setLoadingMsg("Loading assignment view...");
     const res = await fetch(
@@ -198,7 +194,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
       const elements = extractUIElements(resources, viewName);
       setUiElements(elements);
 
-      // Flatten content for formData
       const flat = {};
       const mapContent = (obj, prefix = "") => {
         Object.keys(obj).forEach((k) => {
@@ -217,7 +212,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }
   }, []);
 
-  /* ── start ── */
   const start = useCallback(async () => {
     setPhase("LOADING");
     setError("");
@@ -244,7 +238,8 @@ export default function PurchaseVehicleDemo({ onBack }) {
           caseTypeID: CASE_TYPE_ID,
         }),
       });
-      if (!caseRes.ok) throw new Error(`Case creation failed: ${caseRes.status}`);
+      if (!caseRes.ok)
+        throw new Error(`Case creation failed: ${caseRes.status}`);
       const caseData = await caseRes.json();
 
       const nextAssId =
@@ -260,7 +255,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }
   }, [getAssignment]);
 
-  /* ── submit ── */
   const submitForm = async (e) => {
     if (e) e.preventDefault();
     setFormErrors([]);
@@ -273,17 +267,16 @@ export default function PurchaseVehicleDemo({ onBack }) {
       }
       payload = { SelectedVehicleID: selectedVehicleId };
     } else {
-      // Re-construct nested payload from flat formData
       const unflatten = (data) => {
         const result = {};
         Object.keys(data).forEach((key) => {
-          // Skip system fields, metadata, and display-only banners
           const keyParts = key.split(".");
-          const isMetadata = keyParts.some(part => 
-            part === "classID" || 
-            part.startsWith("px") || 
-            part.startsWith("py") || 
-            part.startsWith("pz")
+          const isMetadata = keyParts.some(
+            (part) =>
+              part === "classID" ||
+              part.startsWith("px") ||
+              part.startsWith("py") ||
+              part.startsWith("pz"),
           );
           if (isMetadata || key.includes("BannerInfoForPrice")) return;
 
@@ -345,7 +338,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }
   };
 
-  /* ── render helpers ── */
   const renderStepper = () =>
     navSteps.length > 0 && (
       <div className="pv-stepper">
@@ -370,7 +362,13 @@ export default function PurchaseVehicleDemo({ onBack }) {
         </span>
         <span className="badge">{caseDetails.stage}</span>
         <span className="badge">Status: {caseDetails.status}</span>
-        <span style={{ marginLeft: "auto", fontWeight: 600, color: "var(--accent-blue)" }}>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontWeight: 600,
+            color: "var(--accent-blue)",
+          }}
+        >
           {caseDetails.instructions}
         </span>
       </div>
@@ -390,13 +388,15 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
     if (el.isBanner) {
       const isAligned = contentData.BudgetAlligned;
-      const variant = el.config?.variant || "info"; // warn or info
-      // Simple visibility check
+      const variant = el.config?.variant || "info";
       if (variant === "warn" && isAligned === true) return null;
       if (variant === "info" && isAligned === false) return null;
 
       return (
-        <div className={`banner banner-${variant}`} key={el.name || Math.random()}>
+        <div
+          className={`banner banner-${variant}`}
+          key={el.name || Math.random()}
+        >
           <span className="banner-icon">ℹ️</span>
           <div className="banner-content">
             {formData[el.name] || el.config?.value || "Notification"}
@@ -446,7 +446,11 @@ export default function PurchaseVehicleDemo({ onBack }) {
             className={el.readOnly ? "read-only-input" : ""}
           />
         )}
-        {err && <div className="error-message">{err.localizedValue || err.message}</div>}
+        {err && (
+          <div className="error-message">
+            {err.localizedValue || err.message}
+          </div>
+        )}
       </div>
     );
   };
@@ -496,7 +500,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
     </div>
   );
 
-  /* ── phases ── */
   if (phase === "INIT") {
     return (
       <div className="dashboard-wrapper">
@@ -534,11 +537,17 @@ export default function PurchaseVehicleDemo({ onBack }) {
       <div className="dashboard-wrapper">
         <div className="loading-container fade-in">
           <h1>Something went wrong</h1>
-          <p className="subtitle" style={{ color: "#dc2626" }}>{error}</p>
+          <p className="subtitle" style={{ color: "#dc2626" }}>
+            {error}
+          </p>
           <div className="btn-group-vertical">
-            <button className="btn btn-primary" onClick={start}>Retry</button>
+            <button className="btn btn-primary" onClick={start}>
+              Retry
+            </button>
             {onBack && (
-              <button className="btn btn-secondary" onClick={onBack}>← Back</button>
+              <button className="btn btn-secondary" onClick={onBack}>
+                ← Back
+              </button>
             )}
           </div>
         </div>
@@ -557,11 +566,16 @@ export default function PurchaseVehicleDemo({ onBack }) {
             <b>{caseDetails.businessID}</b>.
           </p>
           <div className="btn-group-vertical">
-            <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            <button
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
               Start New
             </button>
             {onBack && (
-              <button className="btn btn-secondary" onClick={onBack}>← Back</button>
+              <button className="btn btn-secondary" onClick={onBack}>
+                ← Back
+              </button>
             )}
           </div>
         </div>
@@ -576,15 +590,21 @@ export default function PurchaseVehicleDemo({ onBack }) {
           <span className="nav-title">Purchase Vehicle</span>
           <div className="nav-meta">
             {caseDetails.businessID && (
-              <span>Case <strong>{caseDetails.businessID}</strong></span>
+              <span>
+                Case <strong>{caseDetails.businessID}</strong>
+              </span>
             )}
             {caseDetails.stage && (
-              <span>Stage <span className="badge">{caseDetails.stage}</span></span>
+              <span>
+                Stage <span className="badge">{caseDetails.stage}</span>
+              </span>
             )}
           </div>
         </div>
         {onBack && (
-          <button className="btn btn-outline-white" onClick={onBack}>← Back</button>
+          <button className="btn btn-outline-white" onClick={onBack}>
+            ← Back
+          </button>
         )}
       </nav>
 
@@ -595,8 +615,10 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
           <div className="form-container fade-in">
             <h1>{caseDetails.instructions}</h1>
-            <p className="subtitle">Please review or complete the information below.</p>
-            
+            <p className="subtitle">
+              Please review or complete the information below.
+            </p>
+
             <form onSubmit={submitForm} noValidate>
               {phase === "FORM2" ? (
                 renderCompareTable()

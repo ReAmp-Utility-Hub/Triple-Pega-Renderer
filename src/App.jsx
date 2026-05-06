@@ -1100,224 +1100,229 @@ function App() {
         </div>
       )}
 
-      {activeDemo === "RETIREMENT_PURCHASE" && (step === "ASSIGNMENT_READY" || step === "FORM") && (
-        <>
-          <nav className="top-nav">
-            <div className="nav-left">
-              <span className="nav-title">{caseDetails.type}</span>
-              <div className="nav-meta">
-                <span>
-                  Urgency <span className="badge">{caseDetails.urgency}</span>
-                </span>
-                <span>
-                  Status <span className="badge">{caseDetails.status}</span>
-                </span>
-                <span>
-                  ID <strong>{caseDetails.businessID}</strong>
-                </span>
+      {activeDemo === "RETIREMENT_PURCHASE" &&
+        (step === "ASSIGNMENT_READY" || step === "FORM") && (
+          <>
+            <nav className="top-nav">
+              <div className="nav-left">
+                <span className="nav-title">{caseDetails.type}</span>
+                <div className="nav-meta">
+                  <span>
+                    Urgency <span className="badge">{caseDetails.urgency}</span>
+                  </span>
+                  <span>
+                    Status <span className="badge">{caseDetails.status}</span>
+                  </span>
+                  <span>
+                    ID <strong>{caseDetails.businessID}</strong>
+                  </span>
+                </div>
               </div>
-            </div>
-          </nav>
-          <div className="app-body">
-            <main className="main-content">
-              <div className="form-container fade-in">
-                <h1>{layoutInfo.title}</h1>
-                <p className="subtitle">{layoutInfo.instructions}</p>
+            </nav>
+            <div className="app-body">
+              <main className="main-content">
+                <div className="form-container fade-in">
+                  <h1>{layoutInfo.title}</h1>
+                  <p className="subtitle">{layoutInfo.instructions}</p>
 
-                <form onSubmit={submitAction} noValidate>
-                  {activeFlow === "RETIREMENT" && viewFields.length > 0 ? (
-                    <div className="dynamic-form-grid">
-                      {viewFields.map((field) => {
-                        const isError = validationErrors.find(
-                          (e) =>
-                            e.erroneousInputOutputIdentifier ===
-                            `.${field.name}`,
-                        );
+                  <form onSubmit={submitAction} noValidate>
+                    {activeFlow === "RETIREMENT" && viewFields.length > 0 ? (
+                      <div className="dynamic-form-grid">
+                        {viewFields.map((field) => {
+                          const isError = validationErrors.find(
+                            (e) =>
+                              e.erroneousInputOutputIdentifier ===
+                              `.${field.name}`,
+                          );
 
-                        if (field.category === "qrcode") {
-                          const qrValue =
-                            formData[field.name] ||
-                            caseDetails.businessID ||
-                            "";
+                          if (field.category === "qrcode") {
+                            const qrValue =
+                              formData[field.name] ||
+                              caseDetails.businessID ||
+                              "";
+                            return (
+                              <div
+                                className="form-group"
+                                key={field.name}
+                                style={{
+                                  gridColumn: "span 2",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <label>{field.label}</label>
+                                <div className="qr-code-wrapper">
+                                  <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrValue)}`}
+                                    alt="QR"
+                                    className="qr-code-image"
+                                  />
+                                  <span className="qr-value-text">
+                                    {qrValue}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div
-                              className="form-group"
+                              className={`form-group ${field.category === "checkbox" ? "checkbox-group" : ""}`}
                               key={field.name}
-                              style={{
-                                gridColumn: "span 2",
-                                alignItems: "center",
-                              }}
                             >
-                              <label>{field.label}</label>
-                              <div className="qr-code-wrapper">
-                                <img
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrValue)}`}
-                                  alt="QR"
-                                  className="qr-code-image"
-                                />
-                                <span className="qr-value-text">{qrValue}</span>
+                              {field.category !== "checkbox" && (
+                                <label>
+                                  {field.label}
+                                  {field.required && (
+                                    <span className="required-star">*</span>
+                                  )}
+                                </label>
+                              )}
+                              <div className="input-wrapper">
+                                {field.iconLeft && (
+                                  <span className="input-icon-left">
+                                    {field.iconLeft}
+                                  </span>
+                                )}
+                                {field.category === "select" ? (
+                                  <select
+                                    name={field.name}
+                                    value={formData[field.name] ?? ""}
+                                    onChange={handleChange}
+                                  >
+                                    <option value="">
+                                      Select {field.label}...
+                                    </option>
+                                    {field.options.map((opt) => (
+                                      <option
+                                        key={opt.key || opt.value}
+                                        value={opt.key || opt.value}
+                                      >
+                                        {opt.value}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : field.category === "textarea" ? (
+                                  <textarea
+                                    name={field.name}
+                                    value={formData[field.name] ?? ""}
+                                    onChange={handleChange}
+                                    rows="3"
+                                  />
+                                ) : field.category === "checkbox" ? (
+                                  <label className="checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      name={field.name}
+                                      checked={!!formData[field.name]}
+                                      onChange={(e) =>
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          [field.name]: e.target.checked,
+                                        }))
+                                      }
+                                    />
+                                    {field.label}
+                                  </label>
+                                ) : (
+                                  <input
+                                    type={field.inputType}
+                                    name={field.name}
+                                    value={formData[field.name] ?? ""}
+                                    onChange={handleChange}
+                                    onBlur={
+                                      field.name.includes("RetirementAge")
+                                        ? () => handleRefresh(field.name)
+                                        : undefined
+                                    }
+                                    className={`${field.iconLeft ? "has-icon-left" : ""} ${field.iconRight ? "has-icon-right" : ""}`}
+                                  />
+                                )}
+                                {field.iconRight && (
+                                  <span className="input-icon-right">
+                                    {field.iconRight}
+                                  </span>
+                                )}
                               </div>
+                              {isError && (
+                                <div className="error-message">
+                                  {isError.localizedValue}
+                                </div>
+                              )}
                             </div>
                           );
-                        }
+                        })}
+                      </div>
+                    ) : (
+                      viewStructure &&
+                      renderNestedForm(
+                        viewStructure,
+                        formData,
+                        setFormData,
+                        handleChange,
+                        availableVehicles,
+                        selectedVehicleId,
+                        handleVehicleSelect,
+                        uiResources,
+                        availableFacilities,
+                      )
+                    )}
 
-                        return (
-                          <div
-                            className={`form-group ${field.category === "checkbox" ? "checkbox-group" : ""}`}
-                            key={field.name}
-                          >
-                            {field.category !== "checkbox" && (
-                              <label>
-                                {field.label}
-                                {field.required && (
-                                  <span className="required-star">*</span>
-                                )}
-                              </label>
-                            )}
-                            <div className="input-wrapper">
-                              {field.iconLeft && (
-                                <span className="input-icon-left">
-                                  {field.iconLeft}
-                                </span>
-                              )}
-                              {field.category === "select" ? (
-                                <select
-                                  name={field.name}
-                                  value={formData[field.name] ?? ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">
-                                    Select {field.label}...
-                                  </option>
-                                  {field.options.map((opt) => (
-                                    <option
-                                      key={opt.key || opt.value}
-                                      value={opt.key || opt.value}
-                                    >
-                                      {opt.value}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : field.category === "textarea" ? (
-                                <textarea
-                                  name={field.name}
-                                  value={formData[field.name] ?? ""}
-                                  onChange={handleChange}
-                                  rows="3"
-                                />
-                              ) : field.category === "checkbox" ? (
-                                <label className="checkbox-label">
-                                  <input
-                                    type="checkbox"
-                                    name={field.name}
-                                    checked={!!formData[field.name]}
-                                    onChange={(e) =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        [field.name]: e.target.checked,
-                                      }))
-                                    }
-                                  />
-                                  {field.label}
-                                </label>
-                              ) : (
-                                <input
-                                  type={field.inputType}
-                                  name={field.name}
-                                  value={formData[field.name] ?? ""}
-                                  onChange={handleChange}
-                                  onBlur={
-                                    field.name.includes("RetirementAge")
-                                      ? () => handleRefresh(field.name)
-                                      : undefined
-                                  }
-                                  className={`${field.iconLeft ? "has-icon-left" : ""} ${field.iconRight ? "has-icon-right" : ""}`}
-                                />
-                              )}
-                              {field.iconRight && (
-                                <span className="input-icon-right">
-                                  {field.iconRight}
-                                </span>
-                              )}
-                            </div>
-                            {isError && (
-                              <div className="error-message">
-                                {isError.localizedValue}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div className="btn-group">
+                      {buttons.secondary?.map((btn, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => console.log(`${btn.name} clicked`)}
+                        >
+                          {btn.name}
+                        </button>
+                      ))}
+                      {buttons.main?.map((btn, i) => (
+                        <button
+                          key={i}
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <div
+                              className="loading-spinner"
+                              style={{ width: "16px", height: "16px" }}
+                            ></div>
+                          ) : (
+                            btn.name
+                          )}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    viewStructure &&
-                    renderNestedForm(
-                      viewStructure,
-                      formData,
-                      setFormData,
-                      handleChange,
-                      availableVehicles,
-                      selectedVehicleId,
-                      handleVehicleSelect,
-                      uiResources,
-                      availableFacilities,
-                    )
-                  )}
-
-                  <div className="btn-group">
-                    {buttons.secondary?.map((btn, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => console.log(`${btn.name} clicked`)}
-                      >
-                        {btn.name}
-                      </button>
-                    ))}
-                    {buttons.main?.map((btn, i) => (
-                      <button
-                        key={i}
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <div
-                            className="loading-spinner"
-                            style={{ width: "16px", height: "16px" }}
-                          ></div>
-                        ) : (
-                          btn.name
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </form>
-              </div>
-
-              <div className="details-container fade-in">
-                <div className="details-tabs">
-                  <div className="tab-item active">Flow Info</div>
+                  </form>
                 </div>
-                <div className="details-grid">
-                  <div className="sidebar-group">
-                    <span className="sidebar-label">Flow Progress</span>
-                    <span className="sidebar-value">
-                      {currentFlowIndex + 1} of {flowSequence.length} -{" "}
-                      {activeFlow}
-                    </span>
+
+                <div className="details-container fade-in">
+                  <div className="details-tabs">
+                    <div className="tab-item active">Flow Info</div>
                   </div>
-                  <div className="sidebar-group">
-                    <span className="sidebar-label">Case Status</span>
-                    <span className="sidebar-value">{caseDetails.status}</span>
+                  <div className="details-grid">
+                    <div className="sidebar-group">
+                      <span className="sidebar-label">Flow Progress</span>
+                      <span className="sidebar-value">
+                        {currentFlowIndex + 1} of {flowSequence.length} -{" "}
+                        {activeFlow}
+                      </span>
+                    </div>
+                    <div className="sidebar-group">
+                      <span className="sidebar-label">Case Status</span>
+                      <span className="sidebar-value">
+                        {caseDetails.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </main>
-          </div>
-        </>
-      )}
+              </main>
+            </div>
+          </>
+        )}
 
       {activeDemo === "RETIREMENT_PURCHASE" && step === "SUCCESS" && (
         <div className="loading-container fade-in">
