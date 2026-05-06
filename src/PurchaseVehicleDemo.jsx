@@ -141,6 +141,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
   const [availableVehicles, setAvailableVehicles] = useState([]);
   const [compareRows, setCompareRows] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [finalResponse, setFinalResponse] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -345,6 +346,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
       if (nextAssId) {
         await getAssignment(nextAssId, token);
       } else {
+        setFinalResponse(resData);
         setPhase("SUCCESS");
       }
     } catch (err) {
@@ -572,25 +574,38 @@ export default function PurchaseVehicleDemo({ onBack }) {
   }
 
   if (phase === "SUCCESS") {
+    const confirmationNote =
+      finalResponse?.confirmationNote || "Workflow Completed";
+    const caseInfo = finalResponse?.data?.caseInfo || {};
+    const finalStatus = caseInfo.status || "Resolved";
+
     return (
       <div className="dashboard-wrapper">
         <div className="loading-container fade-in">
           <div style={{ fontSize: "3rem" }}>✅</div>
-          <h1>Purchase Completed</h1>
+          <h1>{confirmationNote}</h1>
           <p className="subtitle">
-            Vehicle <b>{selectedVehicleId}</b> selected for case{" "}
-            <b>{caseDetails.businessID}</b>.
+            Case <b>{caseInfo.businessID || caseDetails.businessID}</b> has been
+            updated.
           </p>
-          <div className="btn-group-vertical">
+          <div
+            className="pv-case-badge"
+            style={{ justifyContent: "center", border: "none" }}
+          >
+            <span className="badge" style={{ fontSize: "1rem" }}>
+              Status: {finalStatus}
+            </span>
+          </div>
+          <div className="btn-group-vertical" style={{ marginTop: "2rem" }}>
             <button
               className="btn btn-primary"
               onClick={() => window.location.reload()}
             >
-              Start New
+              Start New Workflow
             </button>
             {onBack && (
               <button className="btn btn-secondary" onClick={onBack}>
-                ← Back
+                ← Back to Menu
               </button>
             )}
           </div>
