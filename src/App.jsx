@@ -1,45 +1,503 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
 const API_BASE = import.meta.env.VITE_API_BASE;
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
-const CASE_TYPE_ID = import.meta.env.VITE_CASE_TYPE_ID;
+const RETIREMENT_CASE_TYPE_ID = import.meta.env.VITE_RETIREMENT_CASE_TYPE_ID;
+const PURCHASE_CASE_TYPE_ID = import.meta.env.VITE_PURCHASE_CASE_TYPE_ID;
+
+const cleanLabel = (text = "") =>
+  text
+    .replace(/^@FL\s+/, "")
+    .replace(/^@L\s+/, "")
+    .replace(/^.*\./, "")
+    .trim();
+
+const VehicleComparisonTable = ({
+  vehicles,
+  selectedId,
+  onSelect,
+  viewConfig,
+  uiResources,
+}) => {
+  if (!vehicles || vehicles.length === 0) {
+    return <div className="no-vehicles">No vehicles available</div>;
+  }
+
+  const extractRowsFromConfig = () => {
+    const rowsToRender = [];
+    const processed = new Set();
+
+    const walk = (items = []) => {
+      items.forEach((item) => {
+        if (item.type === "Group") {
+          const groupLabel = cleanLabel(item.config?.heading || item.name);
+          rowsToRender.push({
+            isGroupHeader: true,
+            label: groupLabel,
+          });
+
+          walk(item.children || []);
+          return;
+        }
+
+        if (item.type === "ScalarList") {
+          const valuePath = item.config?.value
+            ?.replace("@FILTERED_LIST ", "")
+            .replace(/\[\]/g, "");
+
+          if (!valuePath) return;
+
+          const pathParts = valuePath.split(".").filter(Boolean);
+          const lastPart = pathParts[pathParts.length - 1];
+
+          if (lastPart === "ID") return;
+
+          if (processed.has(valuePath)) return;
+          processed.add(valuePath);
+
+          const fieldLabel =
+            uiResources?.fields?.[lastPart]?.[0]?.label ||
+            cleanLabel(item.config?.label) ||
+            lastPart;
+
+          const extractPath = pathParts.slice(1).join(".");
+
+          rowsToRender.push({
+            header: false,
+            label: fieldLabel,
+            path: extractPath,
+          });
+        }
+
+        if (item.children) walk(item.children);
+      });
+    };
+
+    walk(viewConfig?.children || []);
+    return rowsToRender;
+  };
+
+  const rowsToRender = extractRowsFromConfig();
+
+  const getValue = (vehicle, path) => {
+    const keys = path.split(".").filter(Boolean);
+    let value = vehicle;
+    for (const key of keys) {
+      value = value?.[key];
+    }
+    return value || "—";
+  };
+
+  return (
+    <div className="compare-table-wrapper">
+      <table className="compare-table">
+        <thead>
+          <tr className="group-header-row">
+            <th colSpan={vehicles.length + 1}>Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rowsToRender.map((row, index) =>
+            row.isGroupHeader ? (
+              <tr key={index} className="group-header-row">
+                <td colSpan={vehicles.length + 1}>{row.label}</td>
+              </tr>
+            ) : (
+              <tr key={index}>
+                <td className="row-label">{row.label}</td>
+                {vehicles.map((vehicle) => (
+                  <td key={`${vehicle.ID}-${index}`}>
+                    {getValue(vehicle, row.path)}
+                  </td>
+                ))}
+              </tr>
+            ),
+          )}
+          <tr className="action-row">
+            <td className="row-label">Select</td>
+            {vehicles.map((vehicle) => (
+              <td key={`select-${vehicle.ID}`}>
+                <button
+                  type="button"
+                  className={`btn ${
+                    selectedId === vehicle.ID ? "btn-primary" : "btn-outline"
+                  }`}
+                  onClick={() => onSelect(vehicle.ID)}
+                >
+                  {selectedId === vehicle.ID ? "Selected" : "Select"}
+                </button>
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const renderNestedForm = (
+  view,
+  formData,
+  setFormData,
+  handleChange,
+  availableVehicles,
+  selectedVehicleId,
+  onVehicleSelect,
+  uiResources = {},
+) => {
+  if (!view?.children) return null;
+
+  const renderChildren = (children, depth = 0) => {
+    return children.map((child, index) => {
+      const key = `${depth}-${index}`;
+
+      if (child.type === "reference" && child.config?.type === "view") {
+        const nestedViewName = child.config.name;
+        const nestedView = uiResources?.views?.[nestedViewName]?.[0];
+
+        if (nestedView && nestedViewName === "CompareVehicles") {
+          return (
+            <div key={key} className="nested-view comparison-view">
+              <VehicleComparisonTable
+                vehicles={availableVehicles}
+                selectedId={selectedVehicleId}
+                onSelect={onVehicleSelect}
+                viewConfig={nestedView}
+                uiResources={uiResources}
+              />
+            </div>
+          );
+        }
+
+        if (nestedView) {
+          return (
+            <div key={key} className="nested-view">
+              {renderNestedForm(
+                nestedView,
+                formData,
+                setFormData,
+                handleChange,
+                availableVehicles,
+                selectedVehicleId,
+                onVehicleSelect,
+                uiResources,
+              )}
+            </div>
+          );
+        }
+
+        return null;
+      }
+
+      if (child.children) {
+        if (child.type === "Region" || child.type === "Group") {
+          const isGroup = child.type === "Group";
+          const heading = child.config?.heading || child.name;
+
+          return (
+            <div
+              key={key}
+              className={isGroup ? "form-group-section" : "form-region"}
+            >
+              {heading && isGroup && (
+                <h4 className="group-heading">{heading}</h4>
+              )}
+
+              <div className={isGroup ? "group-content" : "region-content"}>
+                {renderChildren(child.children, depth + 1)}
+              </div>
+            </div>
+          );
+        }
+
+        return <div key={key}>{renderChildren(child.children, depth + 1)}</div>;
+      }
+
+      if (child.type === "ScalarList") return null;
+
+      if (child.config?.value && child.type !== "reference") {
+        const fieldRef = child.config.value;
+        const fieldName = fieldRef
+          .replace("@FILTERED_LIST ", "")
+          .replace("@P .", "")
+          .replace(/\[\]/g, "");
+
+        if (fieldName === "pyID") return null;
+
+        const label =
+          child.config.label?.replace("@FL .", "").replace("@L ", "") ||
+          fieldName;
+
+        const value = formData[fieldName] ?? "";
+
+        return (
+          <div key={key} className="form-group">
+            <label>
+              {label}
+              {child.config.required && (
+                <span className="required-star">*</span>
+              )}
+            </label>
+            <input
+              type="text"
+              name={fieldName}
+              value={value}
+              onChange={handleChange}
+              readOnly={child.config.readOnly}
+              className={child.config.readOnly ? "read-only-input" : ""}
+              placeholder={label}
+            />
+          </div>
+        );
+      }
+
+      return null;
+    });
+  };
+
+  return (
+    <div className="dynamic-form-grid">{renderChildren(view.children)}</div>
+  );
+};
 
 function App() {
   const [step, setStep] = useState("INIT");
+  const [activeFlow, setActiveFlow] = useState("RETIREMENT");
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState("");
   const [assignmentId, setAssignmentId] = useState("");
   const [actionId, setActionId] = useState("");
   const [etag, setEtag] = useState("");
   const [formData, setFormData] = useState({});
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Configuring context...",
+  );
+
   const [viewFields, setViewFields] = useState([]);
-  const [layoutInfo, setLayoutInfo] = useState({ title: "", instructions: "" });
+
+  const [viewStructure, setViewStructure] = useState(null);
+  const [uiResources, setUiResources] = useState(null);
+  const [availableVehicles, setAvailableVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
+
   const [caseDetails, setCaseDetails] = useState({
     urgency: "",
     status: "",
     created: "",
     assignedTo: "",
     type: "",
+    businessID: "",
   });
-  const [validationErrors, setValidationErrors] = useState([]);
-  const [confirmation, setConfirmation] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState(
-    "Configuring context...",
-  );
+
+  const [layoutInfo, setLayoutInfo] = useState({
+    title: "",
+    instructions: "",
+  });
+
+  const [buttons, setButtons] = useState({
+    main: [],
+    secondary: [],
+  });
+
   const authRef = useRef(false);
 
-  const [buttons, setButtons] = useState({ main: [], secondary: [] });
+  const autoAuthenticateRef = useRef(null);
 
-  useEffect(() => {
-    if (authRef.current) return;
-    authRef.current = true;
-    autoAuthenticate();
-  }, []);
+  const getAssignmentDetails = useCallback(
+    async (id, passedToken, caseTypeIdOverride) => {
+      const activeToken = passedToken || token;
+      const caseTypeId = caseTypeIdOverride || (activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID);
+      try {
+        const response = await fetch(
+          `${API_BASE}/assignments/${id}?viewType=form&caseTypeID=${caseTypeId}`,
+          {
+            headers: { Authorization: `Bearer ${activeToken}` },
+          },
+        );
+        const data = await response.json();
 
-  const autoAuthenticate = async () => {
+        const caseInfo = data.data.caseInfo;
+        const resources = data.uiResources;
+        const currentAssignment = caseInfo.assignments[0];
+
+        setEtag(response.headers.get("ETag") || "");
+        setActionId(currentAssignment.actions[0].ID);
+        setButtons(resources.actionButtons || { main: [], secondary: [] });
+
+        setCaseDetails({
+          urgency: caseInfo.urgency || "N/A",
+          status: caseInfo.status || "N/A",
+          created: caseInfo.createTime
+            ? new Date(caseInfo.createTime).toLocaleDateString()
+            : "N/A",
+          assignedTo: currentAssignment.assigneeInfo?.name || "Unassigned",
+          type:
+            caseInfo.caseTypeName ||
+            (activeFlow === "RETIREMENT"
+              ? "Retirement Calculator"
+              : "Purchase Vehicle"),
+          businessID: caseInfo.businessID || caseInfo.ID.split(" ").pop(),
+        });
+
+        setLayoutInfo({
+          title: caseInfo.name || currentAssignment.name || "",
+          instructions: currentAssignment.instructions || "",
+        });
+
+        const content = caseInfo.content;
+
+        if (activeFlow === "RETIREMENT") {
+          const fields = resources.resources.fields;
+          const viewName = content.pyViewName || "Create";
+          const extractedFields = [];
+          const viewConfig = resources.resources.views[viewName]?.[0];
+
+          if (viewConfig && viewConfig.children?.[0]?.children) {
+            const fieldsArray = viewConfig.children[0].children;
+            const numericTypes = [
+              "integer",
+              "decimal",
+              "currency",
+              "percentage",
+              "double",
+            ];
+            const selectionTypes = ["dropdown", "autocomplete", "radiobuttons"];
+
+            fieldsArray.forEach((fieldObj) => {
+              if (fieldObj.config && fieldObj.config.value) {
+                const fieldName = fieldObj.config.value.replace("@P .", "");
+                const fieldMetadata = fields[fieldName]?.[0] || {};
+                const rawType = fieldObj.type || fieldMetadata.type || "";
+                const typeLower = rawType.toLowerCase();
+
+                let category = "input";
+                if (selectionTypes.includes(typeLower)) category = "select";
+                else if (typeLower === "textarea") category = "textarea";
+                else if (typeLower === "checkbox") category = "checkbox";
+                else if (typeLower.includes("qrcode")) category = "qrcode";
+
+                extractedFields.push({
+                  name: fieldName,
+                  type: rawType,
+                  category: category,
+                  inputType: numericTypes.includes(typeLower)
+                    ? "number"
+                    : typeLower === "checkbox"
+                      ? "checkbox"
+                      : "text",
+                  label: fieldMetadata.label || fieldName,
+                  required:
+                    fieldObj.config.required === true ||
+                    fieldMetadata.required === true,
+                  config: fieldObj.config,
+                  iconLeft: typeLower === "currency" ? "$" : null,
+                  iconRight: typeLower === "percentage" ? "%" : null,
+                  options: fieldMetadata.options || [],
+                });
+              }
+            });
+          }
+          setViewFields(extractedFields);
+          const initialData = {};
+          extractedFields.forEach((field) => {
+            initialData[field.name] = content[field.name] ?? "";
+          });
+          setFormData(initialData);
+        } else {
+          const viewName =
+            resources.root?.config?.name ||
+            content.pyViewName ||
+            currentAssignment.actions[0].ID ||
+            "SelectVehicle";
+          const viewConfig = resources.resources.views[viewName]?.[0];
+
+          setUiResources(resources.resources);
+          setViewStructure(viewConfig);
+          setAvailableVehicles(content.AvailableVehicles || []);
+          setSelectedVehicleId(content.SelectedVehicleID || "");
+
+          const initialData = {};
+          if (content.SelectedVehicleID !== undefined)
+            initialData.SelectedVehicleID = content.SelectedVehicleID;
+          if (content.pyID !== undefined) initialData.pyID = content.pyID;
+          setFormData(initialData);
+        }
+
+        setStep("ASSIGNMENT_READY");
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [activeFlow, token],
+  );
+
+  const createCase = useCallback(
+    async (caseTypeId, passedToken) => {
+      const activeToken = passedToken || token;
+      if (!activeToken) return;
+
+      setLoading(true);
+      setStep("LOADING");
+      setLoadingMessage("Initializing case...");
+
+      try {
+        const response = await fetch(`${API_BASE}/cases`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${activeToken}`,
+          },
+          body: JSON.stringify({
+            content: { pyLabel: "Case Creation" },
+            caseTypeID: caseTypeId,
+          }),
+        });
+
+        const text = await response.text();
+        let resData = null;
+        if (text) {
+          try {
+            resData = JSON.parse(text);
+          } catch (e) {
+            console.error("Failed to parse JSON", e);
+          }
+        }
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            authRef.current = false;
+            if (autoAuthenticateRef.current) {
+              await autoAuthenticateRef.current();
+            }
+            return;
+          }
+          if (resData && (resData.errorDetails || resData.validationMessages)) {
+            setValidationErrors(
+              resData.errorDetails || resData.validationMessages,
+            );
+          }
+          setStep("ASSIGNMENT_READY");
+          return;
+        }
+
+        const assId = resData.nextAssignmentInfo.ID;
+        setAssignmentId(assId);
+        getAssignmentDetails(assId, activeToken, caseTypeId);
+      } catch (err) {
+        console.error(err);
+        setStep("INIT");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getAssignmentDetails, token],
+  );
+
+  const autoAuthenticate = useCallback(async () => {
     setLoading(true);
     setStep("LOADING");
     setLoadingMessage("Authenticating with Pega...");
@@ -53,183 +511,80 @@ function App() {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params,
       });
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`Auth failed with status: ${response.status}`);
-      }
       const data = await response.json();
       setToken(data.access_token);
-      createCase(data.access_token);
+
+      createCase(RETIREMENT_CASE_TYPE_ID, data.access_token);
     } catch (err) {
       console.error(err);
-      setLoadingMessage(
-        `Error: ${err.message}. Please check if the Pega instance is online.`,
-      );
+      setLoadingMessage(`Error: ${err.message}`);
       setTimeout(() => setStep("INIT"), 3000);
     } finally {
       setLoading(false);
     }
-  };
+  }, [createCase]);
 
-  const createCase = async (passedToken) => {
-    const activeToken = typeof passedToken === "string" ? passedToken : token;
-    if (!activeToken) return;
-    setLoading(true);
-    setStep("LOADING");
-    setLoadingMessage("Initializing assessment...");
-    try {
-      const response = await fetch(`${API_BASE}/cases`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${activeToken}`,
-        },
-        body: JSON.stringify({
-          content: { pyLabel: "Case Creation" },
-          caseTypeID: CASE_TYPE_ID,
-        }),
-      });
-      if (response.status === 401) {
-        authRef.current = false;
-        await autoAuthenticate();
-        setStep("INIT");
-        return;
-      }
-      const data = await response.json();
-      const assId = data.nextAssignmentInfo.ID;
-      setAssignmentId(assId);
-      getAssignmentDetails(assId, activeToken);
-    } catch (err) {
-      console.error(err);
-      setStep("INIT");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    autoAuthenticateRef.current = autoAuthenticate;
+  }, [autoAuthenticate]);
 
-  const getAssignmentDetails = async (id, passedToken) => {
-    const activeToken = passedToken || token;
-    try {
-      const response = await fetch(
-        `${API_BASE}/assignments/${id}?viewType=form`,
-        {
-          headers: { Authorization: `Bearer ${activeToken}` },
-        },
-      );
-      const data = await response.json();
-      const caseInfo = data.data.caseInfo;
-      const uiResources = data.uiResources;
-      const currentAssignment = caseInfo.assignments[0];
-      setEtag(response.headers.get("ETag") || "");
-      setActionId(currentAssignment.actions[0].ID);
-      const fields = uiResources.resources.fields;
-      setButtons(uiResources.actionButtons || { main: [], secondary: [] });
-      setCaseDetails({
-        urgency: caseInfo.urgency || "N/A",
-        status: caseInfo.status || "N/A",
-        created: caseInfo.createTime
-          ? new Date(caseInfo.createTime).toLocaleDateString()
-          : "N/A",
-        assignedTo: currentAssignment.assigneeInfo?.name || "Unassigned",
-        type: caseInfo.caseTypeName || "Retirement Calculator",
-        businessID: caseInfo.businessID || caseInfo.ID.split(" ").pop(),
-      });
-      const viewName = caseInfo.content.pyViewName || "Create";
-      const extractedFields = [];
-      const viewConfig = uiResources.resources.views[viewName]?.[0];
-      if (viewConfig && viewConfig.children?.[0]?.children) {
-        const fieldsArray = viewConfig.children[0].children;
-        const numericTypes = [
-          "integer",
-          "decimal",
-          "currency",
-          "percentage",
-          "double",
-        ];
-        const selectionTypes = ["dropdown", "autocomplete", "radiobuttons"];
-
-        fieldsArray.forEach((fieldObj) => {
-          if (fieldObj.config && fieldObj.config.value) {
-            const fieldName = fieldObj.config.value.replace("@P .", "");
-            const fieldMetadata = fields[fieldName]?.[0] || {};
-            const rawType = fieldObj.type || fieldMetadata.type || "";
-            const typeLower = rawType.toLowerCase();
-
-            let category = "input";
-            if (selectionTypes.includes(typeLower)) category = "select";
-            else if (typeLower === "textarea") category = "textarea";
-            else if (typeLower === "checkbox") category = "checkbox";
-            else if (typeLower.includes("qrcode")) category = "qrcode";
-
-            extractedFields.push({
-              name: fieldName,
-              type: rawType,
-              category: category,
-              inputType: numericTypes.includes(typeLower)
-                ? "number"
-                : typeLower === "checkbox"
-                  ? "checkbox"
-                  : "text",
-              label: fieldMetadata.label || fieldName,
-              required:
-                fieldObj.config.required === true ||
-                fieldMetadata.required === true,
-              config: fieldObj.config,
-              iconLeft: typeLower === "currency" ? "$" : null,
-              iconRight: typeLower === "percentage" ? "%" : null,
-              options: fieldMetadata.options || [],
-            });
-          }
-        });
-      }
-      setViewFields(extractedFields);
-      setLayoutInfo({
-        title: caseInfo.name || "",
-        instructions: currentAssignment.instructions || "",
-      });
-      const content = caseInfo.content;
-      const initialData = {};
-      extractedFields.forEach((field) => {
-        initialData[field.name] = content[field.name] ?? "";
-      });
-      setFormData(initialData);
-      setStep("ASSIGNMENT_READY");
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  useEffect(() => {
+    if (authRef.current) return;
+    authRef.current = true;
+    autoAuthenticate();
+  }, [autoAuthenticate]);
 
   const submitAction = async (e) => {
     if (e) e.preventDefault();
-    const clientErrors = [];
-    viewFields.forEach((field) => {
-      if (
-        field.required &&
-        (formData[field.name] === undefined || formData[field.name] === "")
-      ) {
-        clientErrors.push({
-          erroneousInputOutputIdentifier: `.${field.name}`,
-          localizedValue: "Please fill out this field",
-          source: "client",
-        });
-      }
-    });
-    if (clientErrors.length > 0) {
-      setValidationErrors(clientErrors);
+
+    if (activeFlow === "PURCHASE" && !selectedVehicleId) {
+      alert("Please select a vehicle");
       return;
     }
+
+    if (activeFlow === "RETIREMENT") {
+      const clientErrors = [];
+      viewFields.forEach((field) => {
+        if (
+          field.required &&
+          (formData[field.name] === undefined || formData[field.name] === "")
+        ) {
+          clientErrors.push({
+            erroneousInputOutputIdentifier: `.${field.name}`,
+            localizedValue: "Please fill out this field",
+            source: "client",
+          });
+        }
+      });
+      if (clientErrors.length > 0) {
+        setValidationErrors(clientErrors);
+        return;
+      }
+    }
+
     setLoading(true);
     setValidationErrors([]);
+
     try {
+      const payload =
+        activeFlow === "PURCHASE"
+          ? { ...formData, SelectedVehicleID: selectedVehicleId }
+          : formData;
+      const method = activeFlow === "RETIREMENT" ? "PATCH" : "POST";
+
+      const caseTypeId = activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
       const response = await fetch(
-        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}?viewType=none`,
+        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}?viewType=none&caseTypeID=${caseTypeId}`,
         {
-          method: "PATCH",
+          method: method,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-            "If-Match": etag,
+            ...(activeFlow === "RETIREMENT" ? { "If-Match": etag } : {}),
           },
-          body: JSON.stringify({ content: formData }),
+          body: JSON.stringify({ content: payload }),
         },
       );
 
@@ -237,7 +592,7 @@ function App() {
       if (newEtag) setEtag(newEtag);
 
       const text = await response.text();
-      let resData = {};
+      let resData = null;
       if (text) {
         try {
           resData = JSON.parse(text);
@@ -246,29 +601,24 @@ function App() {
         }
       }
 
-      if (resData.confirmationNote) {
-        setConfirmation(resData.confirmationNote);
+      if (!response.ok) {
+        if (resData && (resData.errorDetails || resData.validationMessages)) {
+          setValidationErrors(
+            resData.errorDetails || resData.validationMessages,
+          );
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (activeFlow === "RETIREMENT") {
+        setActiveFlow("PURCHASE");
+        createCase(PURCHASE_CASE_TYPE_ID, token);
+      } else {
         setStep("SUCCESS");
-      } else if (resData.content) {
-        setFormData(resData.content);
-        setStep("FORM");
-      } else if (
-        resData.errorClassification === "Validation fail" ||
-        resData.errorClassification === "Invalid inputs"
-      ) {
-        setValidationErrors(resData.errorDetails);
-        setStep("ASSIGNMENT_READY");
-      } else if (!response.ok) {
-        setValidationErrors([
-          {
-            localizedValue: `Submission failed with status ${response.status}`,
-            source: "client",
-          },
-        ]);
       }
     } catch (err) {
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -281,10 +631,17 @@ function App() {
     }));
   };
 
+  const handleVehicleSelect = (vehicleId) => {
+    setSelectedVehicleId(vehicleId);
+    setFormData((prev) => ({ ...prev, SelectedVehicleID: vehicleId }));
+  };
+
   const handleRefresh = async (fieldName) => {
+    if (activeFlow !== "RETIREMENT") return;
     try {
+      const caseTypeId = activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
       const response = await fetch(
-        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}/refresh?refreshFor=.${fieldName}`,
+        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}/refresh?refreshFor=.${fieldName}&caseTypeID=${caseTypeId}`,
         {
           method: "PATCH",
           headers: {
@@ -295,55 +652,32 @@ function App() {
           body: JSON.stringify({ content: formData, pageInstructions: [] }),
         },
       );
-
       const newEtag = response.headers.get("ETag");
       if (newEtag) setEtag(newEtag);
-
-      if (response.status === 204) {
-        setValidationErrors((prev) =>
-          prev.filter(
-            (e) => e.erroneousInputOutputIdentifier !== `.${fieldName}`,
-          ),
-        );
-        return;
-      }
-
+      if (response.status === 204) return;
       const text = await response.text();
-      if (!text) {
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-        setValidationErrors((prev) =>
-          prev.filter(
-            (e) => e.erroneousInputOutputIdentifier !== `.${fieldName}`,
-          ),
-        );
-        return;
-      }
-
-      let data = {};
+      if (!text) return;
       try {
-        data = JSON.parse(text);
+        const data = JSON.parse(text);
+        if (data.validationMessages || data.errorDetails) {
+          const rawErrors = data.validationMessages || data.errorDetails || [];
+          setValidationErrors((prev) => {
+            const fieldPath = `.${fieldName}`;
+            const filtered = prev.filter(
+              (e) => e.erroneousInputOutputIdentifier !== fieldPath,
+            );
+            const newErrors = rawErrors.map((m) => ({
+              erroneousInputOutputIdentifier:
+                m.path || m.erroneousInputOutputIdentifier || fieldPath,
+              localizedValue: m.localizedValue || m.message,
+              source: "refresh",
+            }));
+            return [...filtered, ...newErrors];
+          });
+        }
       } catch (e) {
         console.error("Failed to parse refresh JSON", e);
       }
-
-      const rawErrors = data.validationMessages || data.errorDetails || [];
-      const errors = rawErrors
-        .filter((m) => m.message || m.localizedValue)
-        .map((m) => ({
-          erroneousInputOutputIdentifier:
-            m.path || m.erroneousInputOutputIdentifier || `.${fieldName}`,
-          localizedValue: m.localizedValue || m.message,
-          source: "refresh",
-        }));
-
-      setValidationErrors((prev) => {
-        const withoutField = prev.filter(
-          (e) => e.erroneousInputOutputIdentifier !== `.${fieldName}`,
-        );
-        return [...withoutField, ...errors];
-      });
     } catch (err) {
       console.error(err);
     }
@@ -353,16 +687,16 @@ function App() {
     <div className="dashboard-wrapper">
       {step === "INIT" && (
         <div className="loading-container fade-in">
-          <h1>Retirement Calculator</h1>
+          <h1>Triple Renderer Hub</h1>
           <button
             className="btn btn-primary"
-            onClick={createCase}
-            disabled={loading || !token}
+            onClick={autoAuthenticate}
+            disabled={loading}
           >
             {loading ? (
               <div className="loading-spinner"></div>
             ) : (
-              "INITIALIZE ASSESSMENT"
+              "START ASSESSMENT"
             )}
           </button>
         </div>
@@ -385,11 +719,10 @@ function App() {
                   Urgency <span className="badge">{caseDetails.urgency}</span>
                 </span>
                 <span>
-                  Work Status{" "}
-                  <span className="badge">{caseDetails.status}</span>
+                  Status <span className="badge">{caseDetails.status}</span>
                 </span>
                 <span>
-                  Created By <strong>{caseDetails.assignedTo}</strong>
+                  ID <strong>{caseDetails.businessID}</strong>
                 </span>
               </div>
             </div>
@@ -397,187 +730,155 @@ function App() {
           <div className="app-body">
             <main className="main-content">
               <div className="form-container fade-in">
-                {validationErrors.filter((e) => e.source === "refresh").length >
-                  0 && (
-                  <div className="global-error-box">
-                    {validationErrors
-                      .filter((e) => e.source === "refresh")
-                      .map((e, idx, arr) => (
-                        <div
-                          key={idx}
-                          style={{
-                            marginBottom: idx === arr.length - 1 ? 0 : "4px",
-                          }}
-                        >
-                          {e.localizedValue || e.message}
-                        </div>
-                      ))}
-                  </div>
-                )}
-                <h1>
-                  {layoutInfo.title}{" "}
-                  <span className="case-id-tag">{caseDetails.businessID}</span>
-                </h1>
+                <h1>{layoutInfo.title}</h1>
                 <p className="subtitle">{layoutInfo.instructions}</p>
-                <form onSubmit={submitAction} noValidate>
-                  <div className="dynamic-form-grid">
-                    {viewFields.map((field) => {
-                      const isError = validationErrors.find(
-                        (e) =>
-                          e.erroneousInputOutputIdentifier === `.${field.name}`,
-                      );
 
-                      if (field.category === "qrcode") {
-                        const qrValueProperty =
-                          field.config?.inputProperty?.replace("@P .", "") ||
-                          field.name;
-                        const qrValue =
-                          formData[qrValueProperty] ||
-                          formData[field.name] ||
-                          caseDetails.businessID ||
-                          "";
+                <form onSubmit={submitAction} noValidate>
+                  {activeFlow === "RETIREMENT" ? (
+                    <div className="dynamic-form-grid">
+                      {viewFields.map((field) => {
+                        const isError = validationErrors.find(
+                          (e) =>
+                            e.erroneousInputOutputIdentifier ===
+                            `.${field.name}`,
+                        );
+
+                        if (field.category === "qrcode") {
+                          const qrValue =
+                            formData[field.name] ||
+                            caseDetails.businessID ||
+                            "";
+                          return (
+                            <div
+                              className="form-group"
+                              key={field.name}
+                              style={{
+                                gridColumn: "span 2",
+                                alignItems: "center",
+                              }}
+                            >
+                              <label>{field.label}</label>
+                              <div className="qr-code-wrapper">
+                                <img
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrValue)}`}
+                                  alt="QR"
+                                  className="qr-code-image"
+                                />
+                                <span className="qr-value-text">{qrValue}</span>
+                              </div>
+                            </div>
+                          );
+                        }
 
                         return (
                           <div
-                            className="form-group"
+                            className={`form-group ${field.category === "checkbox" ? "checkbox-group" : ""}`}
                             key={field.name}
-                            style={{
-                              gridColumn: "span 2",
-                              alignItems: "center",
-                            }}
                           >
-                            <label>{field.label}</label>
-                            <div className="qr-code-wrapper">
-                              <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrValue)}`}
-                                alt="QR Code"
-                                className="qr-code-image"
-                              />
-                              <span className="qr-value-text">
-                                {qrValue || "Waiting for data..."}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          className={`form-group ${field.category === "checkbox" ? "checkbox-group" : ""}`}
-                          key={field.name}
-                        >
-                          {field.category !== "checkbox" && (
-                            <label>
-                              {field.label}
-                              {field.required && (
-                                <span className="required-star">*</span>
-                              )}
-                            </label>
-                          )}
-
-                          <div className="input-wrapper">
-                            {field.iconLeft && (
-                              <span className="input-icon-left">
-                                {field.iconLeft}
-                              </span>
-                            )}
-
-                            {field.category === "select" ? (
-                              <select
-                                name={field.name}
-                                value={formData[field.name] ?? ""}
-                                onChange={handleChange}
-                                className={`${isError ? "input-error" : ""}`}
-                              >
-                                <option value="">
-                                  Select {field.label}...
-                                </option>
-                                {field.options.map((opt) => (
-                                  <option
-                                    key={opt.key || opt.value}
-                                    value={opt.key || opt.value}
-                                  >
-                                    {opt.value}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : field.category === "textarea" ? (
-                              <textarea
-                                name={field.name}
-                                value={formData[field.name] ?? ""}
-                                placeholder={field.label}
-                                onChange={handleChange}
-                                className={`${isError ? "input-error" : ""}`}
-                                rows="3"
-                              />
-                            ) : field.category === "checkbox" ? (
-                              <label className="checkbox-label">
-                                <input
-                                  type="checkbox"
-                                  name={field.name}
-                                  checked={
-                                    formData[field.name] === true ||
-                                    formData[field.name] === "true"
-                                  }
-                                  onChange={(e) =>
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      [field.name]: e.target.checked,
-                                    }))
-                                  }
-                                />
+                            {field.category !== "checkbox" && (
+                              <label>
                                 {field.label}
                                 {field.required && (
                                   <span className="required-star">*</span>
                                 )}
                               </label>
-                            ) : (
-                              <input
-                                type={field.inputType}
-                                name={field.name}
-                                value={formData[field.name] ?? ""}
-                                placeholder={field.label}
-                                onChange={handleChange}
-                                onFocus={() =>
-                                  setValidationErrors((prev) =>
-                                    prev.filter(
-                                      (e) =>
-                                        e.erroneousInputOutputIdentifier !==
-                                        `.${field.name}`,
-                                    ),
-                                  )
-                                }
-                                onBlur={
-                                  field.name.includes("RetirementAge")
-                                    ? () => handleRefresh(field.name)
-                                    : undefined
-                                }
-                                autoComplete="off"
-                                className={`${isError ? "input-error" : ""} ${field.iconLeft ? "has-icon-left" : ""} ${field.iconRight ? "has-icon-right" : ""}`}
-                              />
                             )}
-
-                            {field.iconRight && (
-                              <span className="input-icon-right">
-                                {field.iconRight}
-                              </span>
+                            <div className="input-wrapper">
+                              {field.iconLeft && (
+                                <span className="input-icon-left">
+                                  {field.iconLeft}
+                                </span>
+                              )}
+                              {field.category === "select" ? (
+                                <select
+                                  name={field.name}
+                                  value={formData[field.name] ?? ""}
+                                  onChange={handleChange}
+                                >
+                                  <option value="">
+                                    Select {field.label}...
+                                  </option>
+                                  {field.options.map((opt) => (
+                                    <option
+                                      key={opt.key || opt.value}
+                                      value={opt.key || opt.value}
+                                    >
+                                      {opt.value}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : field.category === "textarea" ? (
+                                <textarea
+                                  name={field.name}
+                                  value={formData[field.name] ?? ""}
+                                  onChange={handleChange}
+                                  rows="3"
+                                />
+                              ) : field.category === "checkbox" ? (
+                                <label className="checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    name={field.name}
+                                    checked={!!formData[field.name]}
+                                    onChange={(e) =>
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        [field.name]: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {field.label}
+                                </label>
+                              ) : (
+                                <input
+                                  type={field.inputType}
+                                  name={field.name}
+                                  value={formData[field.name] ?? ""}
+                                  onChange={handleChange}
+                                  onBlur={
+                                    field.name.includes("RetirementAge")
+                                      ? () => handleRefresh(field.name)
+                                      : undefined
+                                  }
+                                  className={`${field.iconLeft ? "has-icon-left" : ""} ${field.iconRight ? "has-icon-right" : ""}`}
+                                />
+                              )}
+                              {field.iconRight && (
+                                <span className="input-icon-right">
+                                  {field.iconRight}
+                                </span>
+                              )}
+                            </div>
+                            {isError && (
+                              <div className="error-message">
+                                {isError.localizedValue}
+                              </div>
                             )}
                           </div>
-                          {isError && isError.source !== "refresh" && (
-                            <div className="error-message">
-                              {isError.localizedValue || isError.message}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    viewStructure &&
+                    renderNestedForm(
+                      viewStructure,
+                      formData,
+                      setFormData,
+                      handleChange,
+                      availableVehicles,
+                      selectedVehicleId,
+                      handleVehicleSelect,
+                      uiResources,
+                    )
+                  )}
+
                   <div className="btn-group">
                     {buttons.secondary?.map((btn, i) => (
                       <button
                         key={i}
                         type="button"
                         className="btn btn-secondary"
+                        onClick={() => console.log(`${btn.name} clicked`)}
                       >
                         {btn.name}
                       </button>
@@ -592,11 +893,7 @@ function App() {
                         {loading ? (
                           <div
                             className="loading-spinner"
-                            style={{
-                              width: "16px",
-                              height: "16px",
-                              borderWidth: "2px",
-                            }}
+                            style={{ width: "16px", height: "16px" }}
                           ></div>
                         ) : (
                           btn.name
@@ -609,29 +906,15 @@ function App() {
 
               <div className="details-container fade-in">
                 <div className="details-tabs">
-                  <div className="tab-item">Summary</div>
-                  <div className="tab-item active">Details</div>
-                  <div className="tab-item">Policy Details</div>
-                  <div className="tab-item">Pulse</div>
-                  <div className="tab-item">History</div>
+                  <div className="tab-item active">Flow Info</div>
                 </div>
                 <div className="details-grid">
                   <div className="sidebar-group">
-                    <span className="sidebar-label">Case ID</span>
-                    <span className="sidebar-value">
-                      {caseDetails.businessID}
-                    </span>
+                    <span className="sidebar-label">Active Flow</span>
+                    <span className="sidebar-value">{activeFlow}</span>
                   </div>
                   <div className="sidebar-group">
-                    <span className="sidebar-label">Label</span>
-                    <span className="sidebar-value">{caseDetails.type}</span>
-                  </div>
-                  <div className="sidebar-group">
-                    <span className="sidebar-label">Urgency</span>
-                    <span className="sidebar-value">{caseDetails.urgency}</span>
-                  </div>
-                  <div className="sidebar-group">
-                    <span className="sidebar-label">Work Status</span>
+                    <span className="sidebar-label">Case Status</span>
                     <span className="sidebar-value">{caseDetails.status}</span>
                   </div>
                 </div>
@@ -643,9 +926,14 @@ function App() {
 
       {step === "SUCCESS" && (
         <div className="loading-container fade-in">
-          <h1>Processed</h1>
-          <p className="subtitle">{confirmation}</p>
-          <button className="btn btn-secondary" onClick={() => setStep("INIT")}>
+          <h1>Assessment Completed</h1>
+          <p className="subtitle">
+            Both Retirement and Purchase flows have been processed.
+          </p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => window.location.reload()}
+          >
             RESET
           </button>
         </div>

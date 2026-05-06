@@ -34,7 +34,8 @@ jobs:
           VITE_BASE_HOST: ${{ secrets.VITE_BASE_HOST }}
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
           VITE_TOKEN_URL: ${{ secrets.VITE_TOKEN_URL }}
-          VITE_CASE_TYPE_ID: ${{ secrets.VITE_CASE_TYPE_ID }}
+          VITE_RETIREMENT_CASE_TYPE_ID: ${{ secrets.VITE_RETIREMENT_CASE_TYPE_ID }}
+          VITE_PURCHASE_CASE_TYPE_ID: ${{ secrets.VITE_PURCHASE_CASE_TYPE_ID }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

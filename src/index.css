@@ -1,13 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
-  --nav-blue: #0B5ED7;
-  --bg-grey: #F8F9FA;
-  --border-color: #E5E7EB;
-  --sidebar-bg: #F3F4F6;
+  --nav-blue: #0b5ed7;
+  --bg-grey: #f8f9fa;
+  --border-color: #e5e7eb;
+  --sidebar-bg: #f3f4f6;
   --text-main: #111827;
-  --text-muted: #6B7280;
-  --accent-blue: #2563EB;
+  --text-muted: #6b7280;
+  --accent-blue: #2563eb;
   --white: #ffffff;
 }
 
@@ -18,7 +18,11 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    system-ui,
+    sans-serif;
   background-color: var(--bg-grey);
   color: var(--text-main);
   line-height: 1.5;
@@ -256,7 +260,7 @@ textarea:focus {
 }
 
 .required-star {
-  color: #DC2626;
+  color: #dc2626;
   margin-left: 4px;
 }
 
@@ -317,12 +321,12 @@ select.has-icon-right {
 }
 
 .btn-secondary {
-  background-color: #E5E7EB;
+  background-color: #e5e7eb;
   color: var(--text-main);
 }
 
 .btn-secondary:hover {
-  background-color: #D1D5DB;
+  background-color: #d1d5db;
 }
 
 .btn-outline-white {
@@ -336,18 +340,18 @@ select.has-icon-right {
 }
 
 .error-message {
-  color: #DC2626;
+  color: #dc2626;
   font-size: 12px;
   margin-top: 4px;
 }
 
 .global-error-box {
-  background: #FEF2F2;
-  border: 1px solid #FEE2E2;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 24px;
-  color: #B91C1C;
+  color: #b91c1c;
   font-size: 13px;
 }
 
@@ -395,7 +399,6 @@ select.has-icon-right {
   margin-left: 8px;
 }
 
-/* QR Code Styles */
 .qr-code-wrapper {
   display: flex;
   flex-direction: column;
@@ -422,7 +425,9 @@ select.has-icon-right {
   background: white;
   padding: 10px;
   border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .qr-code-placeholder {
@@ -447,4 +452,80 @@ select.has-icon-right {
   padding: 2px 8px;
   border-radius: 4px;
   word-break: break-all;
+
+  .compare-table-wrapper {
+    width: 100%;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+
+  .compare-table th,
+  .compare-table td {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+  }
+
+  .compare-table thead th {
+    background: var(--bg-grey);
+  }
+
+  .compare-table .group-header-row,
+  .compare-table .group-header-row td,
+  .compare-table .group-header-row th {
+    background: var(--bg-grey);
+    font-weight: bold;
+    color: var(--text-main);
+  }
+
+  .compare-table .action-row {
+    background: var(--white);
+  }
+
+  .compare-table .row-label {
+    font-weight: 600;
+    background-color: var(--bg-grey);
+    width: 200px;
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--nav-blue);
+    color: var(--nav-blue);
+  }
+
+  .btn-outline:hover {
+    background: var(--nav-blue);
+    color: var(--white);
+  }
+
+  .form-group-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+  }
+
+  .group-heading {
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    color: var(--nav-blue);
+    border-bottom: 2px solid var(--nav-blue);
+    padding-bottom: 0.5rem;
+  }
+
+  .nested-view {
+    margin-top: 1rem;
+  }
+
+  .read-only-input {
+    background-color: var(--bg-grey) !important;
+    cursor: not-allowed;
+  }
 }
