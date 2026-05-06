@@ -417,10 +417,27 @@ function App() {
           setAvailableVehicles(content.AvailableVehicles || []);
           setSelectedVehicleId(content.SelectedVehicleID || "");
 
+          const skipKeys = new Set([
+            "classID",
+            "pxObjClass",
+            "pxUrgencyWork",
+            "pxCreateOperator",
+            "pxUpdateDateTime",
+            "pxUpdateOperator",
+            "pxCreateDateTime",
+            "pyStatusWork",
+            "AvailableVehicles",
+          ]);
           const initialData = {};
-          if (content.SelectedVehicleID !== undefined)
-            initialData.SelectedVehicleID = content.SelectedVehicleID;
-          if (content.pyID !== undefined) initialData.pyID = content.pyID;
+          Object.keys(content).forEach((key) => {
+            if (
+              !skipKeys.has(key) &&
+              !Array.isArray(content[key]) &&
+              typeof content[key] !== "object"
+            ) {
+              initialData[key] = content[key] ?? "";
+            }
+          });
           setFormData(initialData);
         }
 
@@ -544,7 +561,7 @@ function App() {
   const submitAction = async (e) => {
     if (e) e.preventDefault();
 
-    if (activeFlow === "PURCHASE" && !selectedVehicleId) {
+    if (activeFlow === "PURCHASE" && actionId === "SelectVehicle" && !selectedVehicleId) {
       alert("Please select a vehicle");
       return;
     }
@@ -574,7 +591,7 @@ function App() {
 
     try {
       const payload =
-        activeFlow === "PURCHASE"
+        activeFlow === "PURCHASE" && actionId === "SelectVehicle"
           ? { ...formData, SelectedVehicleID: selectedVehicleId }
           : formData;
       const method = "PATCH";
