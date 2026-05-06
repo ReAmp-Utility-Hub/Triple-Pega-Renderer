@@ -297,9 +297,7 @@ const renderNestedForm = (
             <span
               className="sidebar-value"
               style={{ opacity: 0.5, fontSize: "0.8rem" }}
-            >
-              Content loads on demand
-            </span>
+            ></span>
           </div>
         );
       }
