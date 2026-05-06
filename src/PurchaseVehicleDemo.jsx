@@ -628,6 +628,29 @@ export default function PurchaseVehicleDemo({ onBack }) {
                 </div>
               )}
 
+              {/* Global Errors (e.g. .pyCommitError) */}
+              {formErrors.length > 0 &&
+                formErrors
+                  .filter((e) => {
+                    // Filter out errors that are already mapped to specific fields
+                    const fieldNames = uiElements.flatMap((el) =>
+                      el.type === "Group" ? el.children.map((c) => c.name) : [el.name],
+                    );
+                    return !fieldNames.some(
+                      (name) => e.erroneousInputOutputIdentifier === `.${name}`,
+                    );
+                  })
+                  .map((e, i) => (
+                    <div
+                      key={i}
+                      className="error-message global-error"
+                      style={{ marginTop: "1.5rem", padding: "12px" }}
+                    >
+                      <strong>Server Error:</strong>{" "}
+                      {e.localizedValue || e.message || "Unknown error"}
+                    </div>
+                  ))}
+
               <div className="btn-group" style={{ marginTop: "2rem" }}>
                 {actionButtons.secondary.map((btn) => (
                   <button
