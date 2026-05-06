@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
+import InspectionDemo from "./InspectionDemo";
 
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET;
@@ -7,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE;
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
 const RETIREMENT_CASE_TYPE_ID = import.meta.env.VITE_RETIREMENT_CASE_TYPE_ID;
 const PURCHASE_CASE_TYPE_ID = import.meta.env.VITE_PURCHASE_CASE_TYPE_ID;
+const INSPECTION_CASE_TYPE_ID = import.meta.env.VITE_INSPECTION_CASE_TYPE_ID;
 
 const cleanLabel = (text = "") =>
   text
@@ -147,8 +149,11 @@ const renderNestedForm = (
   selectedVehicleId,
   onVehicleSelect,
   uiResources = {},
+  availableFacilities = [],
 ) => {
   if (!view?.children) return null;
+
+  const processedFields = new Set();
 
   const renderChildren = (children, depth = 0) => {
     return children.map((child, index) => {
@@ -184,6 +189,7 @@ const renderNestedForm = (
                 selectedVehicleId,
                 onVehicleSelect,
                 uiResources,
+                availableFacilities,
               )}
             </div>
           );
@@ -302,6 +308,58 @@ const renderNestedForm = (
         );
       }
 
+      if (child.type === "AutoComplete") {
+        const valueField = child.config?.value?.replace("@P .", "");
+        const parentFieldName = valueField.includes(".")
+          ? valueField.split(".")[0]
+          : null;
+        const fieldName = valueField.includes(".")
+          ? valueField.split(".").pop()
+          : valueField;
+
+        const parentFieldMetadata = parentFieldName
+          ? uiResources?.fields?.[parentFieldName]?.[0]
+          : null;
+        const fieldMetadata = uiResources?.fields?.[fieldName]?.[0] || {};
+
+        const label =
+          parentFieldMetadata?.label ||
+          child.config.label?.replace("@FL .", "").replace("@L ", "") ||
+          parentFieldName ||
+          fieldMetadata.label ||
+          fieldName;
+
+        if (processedFields.has(valueField)) return null;
+
+        const parentField = valueField.includes(".")
+          ? valueField.split(".")[0]
+          : null;
+        if (parentField && processedFields.has(parentField)) return null;
+
+        processedFields.add(valueField);
+        if (parentField) processedFields.add(parentField);
+
+        const value = formData[valueField] ?? "";
+
+        return (
+          <div key={key} className="form-group">
+            <label>
+              {label}
+              {child.config.required && (
+                <span className="required-star">*</span>
+              )}
+            </label>
+            <input
+              type="text"
+              name={valueField}
+              value={value}
+              onChange={handleChange}
+              placeholder={`Enter ${label}`}
+            />
+          </div>
+        );
+      }
+
       if (child.config?.value && child.type !== "reference") {
         const fieldRef = child.config.value;
         const fieldName = fieldRef
@@ -310,10 +368,23 @@ const renderNestedForm = (
           .replace(/\[\]/g, "");
 
         if (fieldName === "pyID") return null;
+        if (processedFields.has(fieldName)) return null;
 
+        const parentField = fieldName.includes(".")
+          ? fieldName.split(".")[0]
+          : null;
+        if (parentField && processedFields.has(parentField)) return null;
+
+        processedFields.add(fieldName);
+
+        const simpleFieldName = fieldName.includes(".")
+          ? fieldName.split(".").pop()
+          : fieldName;
+        const fieldMetadata = uiResources?.fields?.[simpleFieldName]?.[0] || {};
         const label =
+          fieldMetadata.label ||
           child.config.label?.replace("@FL .", "").replace("@L ", "") ||
-          fieldName;
+          simpleFieldName;
 
         const value = formData[fieldName] ?? "";
 
@@ -348,8 +419,15 @@ const renderNestedForm = (
 };
 
 function App() {
+  const [activeDemo, setActiveDemo] = useState("RETIREMENT_PURCHASE");
   const [step, setStep] = useState("INIT");
   const [activeFlow, setActiveFlow] = useState("RETIREMENT");
+  const [flowSequence, setFlowSequence] = useState([
+    "RETIREMENT",
+    "INSPECTION",
+    "PURCHASE",
+  ]);
+  const [currentFlowIndex, setCurrentFlowIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState("");
   const [assignmentId, setAssignmentId] = useState("");
@@ -365,6 +443,7 @@ function App() {
   const [uiResources, setUiResources] = useState(null);
   const [availableVehicles, setAvailableVehicles] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [availableFacilities, setAvailableFacilities] = useState([]);
 
   const [caseDetails, setCaseDetails] = useState({
     urgency: "",
@@ -521,18 +600,29 @@ function App() {
               "pxUpdateOperator",
               "pxCreateDateTime",
               "pyStatusWork",
+              "pyID",
+              "pyLabel",
+              "pyCaseType",
               "AvailableVehicles",
             ]);
             const initialData = {};
-            Object.keys(content).forEach((key) => {
-              if (
-                !skipKeys.has(key) &&
-                !Array.isArray(content[key]) &&
-                typeof content[key] !== "object"
-              ) {
-                initialData[key] = content[key] ?? "";
-              }
-            });
+
+            const extractFields = (obj, prefix = "") => {
+              Object.keys(obj).forEach((key) => {
+                if (skipKeys.has(key)) return;
+                const fullKey = prefix ? `${prefix}.${key}` : key;
+                const value = obj[key];
+                if (value === null || value === undefined) {
+                  initialData[fullKey] = "";
+                } else if (typeof value === "object" && !Array.isArray(value)) {
+                  extractFields(value, fullKey);
+                } else if (!Array.isArray(value)) {
+                  initialData[fullKey] = value;
+                }
+              });
+            };
+
+            extractFields(content);
             setFormData(initialData);
           }
         } else {
@@ -548,6 +638,33 @@ function App() {
           setAvailableVehicles(content.AvailableVehicles || []);
           setSelectedVehicleId(content.SelectedVehicleID || "");
 
+          if (
+            activeFlow === "INSPECTION" ||
+            caseInfo.caseTypeName === "Property Inspection"
+          ) {
+            console.log("Fetching facilities for complex form...");
+            try {
+              const dpResponse = await fetch(
+                `${API_BASE}/data/D_FacilityList`,
+                { headers: { Authorization: `Bearer ${activeToken}` } },
+              );
+              console.log("Facility fetch response status:", dpResponse.status);
+              if (dpResponse.ok) {
+                const dpData = await dpResponse.json();
+                console.log(
+                  "Facilities loaded:",
+                  dpData.data?.length || 0,
+                  "items",
+                );
+                setAvailableFacilities(dpData.data || []);
+              } else {
+                console.error("Facility fetch failed:", dpResponse.status);
+              }
+            } catch (e) {
+              console.error("Failed to fetch facilities", e);
+            }
+          }
+
           const skipKeys = new Set([
             "classID",
             "pxObjClass",
@@ -557,18 +674,29 @@ function App() {
             "pxUpdateOperator",
             "pxCreateDateTime",
             "pyStatusWork",
+            "pyID",
+            "pyLabel",
+            "pyCaseType",
             "AvailableVehicles",
           ]);
           const initialData = {};
-          Object.keys(content).forEach((key) => {
-            if (
-              !skipKeys.has(key) &&
-              !Array.isArray(content[key]) &&
-              typeof content[key] !== "object"
-            ) {
-              initialData[key] = content[key] ?? "";
-            }
-          });
+
+          const extractFields = (obj, prefix = "") => {
+            Object.keys(obj).forEach((key) => {
+              if (skipKeys.has(key)) return;
+              const fullKey = prefix ? `${prefix}.${key}` : key;
+              const value = obj[key];
+              if (value === null || value === undefined) {
+                initialData[fullKey] = "";
+              } else if (typeof value === "object" && !Array.isArray(value)) {
+                extractFields(value, fullKey);
+              } else if (!Array.isArray(value)) {
+                initialData[fullKey] = value;
+              }
+            });
+          };
+
+          extractFields(content);
           setFormData(initialData);
         }
 
@@ -663,12 +791,10 @@ function App() {
         const data = await response.json();
         setToken(data.access_token);
 
-        const caseTypeId =
-          startFlow === "RETIREMENT"
-            ? RETIREMENT_CASE_TYPE_ID
-            : PURCHASE_CASE_TYPE_ID;
-        setActiveFlow(startFlow);
-        createCase(caseTypeId, data.access_token);
+        setCurrentFlowIndex(0);
+        setFlowSequence(["RETIREMENT", "INSPECTION", "PURCHASE"]);
+        setActiveFlow("RETIREMENT");
+        createCase(RETIREMENT_CASE_TYPE_ID, data.access_token);
       } catch (err) {
         console.error(err);
         setLoadingMessage(`Error: ${err.message}`);
@@ -702,6 +828,14 @@ function App() {
       return;
     }
 
+    if (activeFlow === "INSPECTION") {
+      const facilityGuid = formData["FacilityInformation.pyGUID"];
+      if (!facilityGuid || facilityGuid === "") {
+        alert("Please select a facility from the dropdown");
+        return;
+      }
+    }
+
     if (activeFlow === "RETIREMENT") {
       const clientErrors = [];
       viewFields.forEach((field) => {
@@ -726,10 +860,52 @@ function App() {
     setValidationErrors([]);
 
     try {
-      const payload =
+      const rawPayload =
         activeFlow === "PURCHASE" && actionId === "SelectVehicle"
           ? { ...formData, SelectedVehicleID: selectedVehicleId }
           : formData;
+
+      const systemFields = new Set([
+        "pyID",
+        "pyLabel",
+        "pyCaseType",
+        "pxObjClass",
+        "classID",
+        "pxCreateDateTime",
+        "pxCreateOperator",
+        "pxUpdateDateTime",
+        "pxUpdateOperator",
+        "pyStatusWork",
+        "pxUrgencyWork",
+      ]);
+
+      const setNestedValue = (obj, path, value) => {
+        const keys = path.split(".");
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+          if (!(keys[i] in current)) {
+            current[keys[i]] = {};
+          }
+          current = current[keys[i]];
+        }
+        current[keys[keys.length - 1]] = value;
+      };
+
+      const payload = {};
+      Object.keys(rawPayload).forEach((key) => {
+        if (
+          !systemFields.has(key) &&
+          !key.startsWith("px") &&
+          !key.startsWith("py")
+        ) {
+          if (key.includes(".")) {
+            setNestedValue(payload, key, rawPayload[key]);
+          } else {
+            payload[key] = rawPayload[key];
+          }
+        }
+      });
+
       const method = "PATCH";
 
       const response = await fetch(
@@ -768,13 +944,20 @@ function App() {
         return;
       }
 
-      if (resData?.nextAssignmentInfo?.ID) {
-        const nextAssId = resData.nextAssignmentInfo.ID;
-        setAssignmentId(nextAssId);
-        getAssignmentDetails(nextAssId, token);
-      } else if (activeFlow === "RETIREMENT") {
-        setActiveFlow("PURCHASE");
-        createCase(PURCHASE_CASE_TYPE_ID, token);
+      const nextIndex = currentFlowIndex + 1;
+      if (nextIndex < flowSequence.length) {
+        setCurrentFlowIndex(nextIndex);
+        const nextFlow = flowSequence[nextIndex];
+        setActiveFlow(nextFlow);
+
+        let nextCaseTypeId;
+        if (nextFlow === "RETIREMENT") nextCaseTypeId = RETIREMENT_CASE_TYPE_ID;
+        else if (nextFlow === "INSPECTION")
+          nextCaseTypeId = INSPECTION_CASE_TYPE_ID;
+        else if (nextFlow === "PURCHASE")
+          nextCaseTypeId = PURCHASE_CASE_TYPE_ID;
+
+        createCase(nextCaseTypeId, token);
       } else {
         setLoading(false);
         setStep("SUCCESS");
@@ -844,33 +1027,56 @@ function App() {
     }
   };
 
+  const renderDemoMenu = () => (
+    <div className="loading-container fade-in">
+      <h1>Triple Renderer Hub</h1>
+      <p className="subtitle">Pega DX API Demonstrations</p>
+      <div className="btn-group-vertical">
+        <button
+          className="btn btn-primary"
+          onClick={() => setActiveDemo("RETIREMENT_PURCHASE")}
+        >
+          Retirement + Purchase Flow
+        </button>
+        <button
+          className="btn btn-outline"
+          onClick={() => setActiveDemo("INSPECTION")}
+        >
+          Smart Property Inspection (DX API Demo)
+        </button>
+      </div>
+    </div>
+  );
+
+  if (activeDemo === "INSPECTION") {
+    return <InspectionDemo />;
+  }
+
   return (
     <div className="dashboard-wrapper">
-      {step === "INIT" && (
+      {activeDemo === "MENU" && renderDemoMenu()}
+
+      {activeDemo === "RETIREMENT_PURCHASE" && step === "INIT" && (
         <div className="loading-container fade-in">
           <h1>Triple Renderer Hub</h1>
           <div className="btn-group-vertical">
             <button
               className="btn btn-primary"
-              onClick={() => autoAuthenticate("RETIREMENT")}
+              onClick={() => autoAuthenticate()}
               disabled={loading}
             >
               {loading ? (
                 <div className="loading-spinner"></div>
               ) : (
-                "START RETIREMENT"
+                "START FULL FLOW (3 Steps)"
               )}
             </button>
             <button
-              className="btn btn-outline"
-              onClick={() => autoAuthenticate("PURCHASE")}
-              disabled={loading}
+              className="btn btn-secondary"
+              onClick={() => setActiveDemo("MENU")}
+              style={{ marginTop: "1rem" }}
             >
-              {loading ? (
-                <div className="loading-spinner"></div>
-              ) : (
-                "START PURCHASE"
-              )}
+              Back to Menu
             </button>
           </div>
         </div>
@@ -1043,6 +1249,7 @@ function App() {
                       selectedVehicleId,
                       handleVehicleSelect,
                       uiResources,
+                      availableFacilities,
                     )
                   )}
 
@@ -1084,8 +1291,11 @@ function App() {
                 </div>
                 <div className="details-grid">
                   <div className="sidebar-group">
-                    <span className="sidebar-label">Active Flow</span>
-                    <span className="sidebar-value">{activeFlow}</span>
+                    <span className="sidebar-label">Flow Progress</span>
+                    <span className="sidebar-value">
+                      {currentFlowIndex + 1} of {flowSequence.length} -{" "}
+                      {activeFlow}
+                    </span>
                   </div>
                   <div className="sidebar-group">
                     <span className="sidebar-label">Case Status</span>
@@ -1098,17 +1308,18 @@ function App() {
         </>
       )}
 
-      {step === "SUCCESS" && (
+      {activeDemo === "RETIREMENT_PURCHASE" && step === "SUCCESS" && (
         <div className="loading-container fade-in">
-          <h1>Assessment Completed</h1>
+          <h1>All Flows Completed</h1>
           <p className="subtitle">
-            Both Retirement and Purchase flows have been processed.
+            Retirement → Inspection → Purchase flows have been processed
+            successfully.
           </p>
           <button
             className="btn btn-secondary"
-            onClick={() => window.location.reload()}
+            onClick={() => setActiveDemo("MENU")}
           >
-            RESET
+            Back to Menu
           </button>
         </div>
       )}

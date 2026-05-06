@@ -36,6 +36,7 @@ jobs:
           VITE_TOKEN_URL: ${{ secrets.VITE_TOKEN_URL }}
           VITE_RETIREMENT_CASE_TYPE_ID: ${{ secrets.VITE_RETIREMENT_CASE_TYPE_ID }}
           VITE_PURCHASE_CASE_TYPE_ID: ${{ secrets.VITE_PURCHASE_CASE_TYPE_ID }}
+          VITE_INSPECTION_CASE_TYPE_ID: ${{ secrets.VITE_INSPECTION_CASE_TYPE_ID }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
