@@ -218,6 +218,61 @@ const renderNestedForm = (
 
       if (child.type === "ScalarList") return null;
 
+      if (child.type === "SimpleTableSelect") {
+        const cleanPegaStr = (s) => (s || "").replace(/^@(L|FL|P)\s+\.?/, "");
+        const label = cleanPegaStr(child.config?.label);
+        const columns = child.config?.detailsDisplay || [];
+        const referenceList = child.config?.referenceList || "";
+        return (
+          <div key={key} className="simple-table-select-wrapper">
+            {label && <h4 className="group-heading">{label}</h4>}
+            <div className="compare-table-wrapper">
+              <table className="compare-table">
+                <thead>
+                  <tr>
+                    {columns.map((col, i) => (
+                      <th key={i}>
+                        {cleanPegaStr(col.config?.label || col.config?.value)}
+                      </th>
+                    ))}
+                    {columns.length === 0 && (
+                      <th>{referenceList || "Data"}</th>
+                    )}
+                    <th>Select</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td
+                      colSpan={(columns.length || 1) + 1}
+                      style={{ textAlign: "center", padding: "1.5rem", opacity: 0.6 }}
+                    >
+                      No {label || "records"} available
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
+
+      if (child.type === "DeferLoad") {
+        const cleanPegaStr = (s) => (s || "").replace(/^@(L|FL|P)\s+\.?/, "");
+        const labelProp = child.config?.inheritedProps?.find(
+          (p) => p.prop === "label",
+        );
+        const label = cleanPegaStr(labelProp?.value || child.config?.name);
+        return (
+          <div key={key} className="defer-load-placeholder">
+            {label && <span className="sidebar-label">{label}</span>}
+            <span className="sidebar-value" style={{ opacity: 0.5, fontSize: "0.8rem" }}>
+              Content loads on demand
+            </span>
+          </div>
+        );
+      }
+
       if (child.config?.value && child.type !== "reference") {
         const fieldRef = child.config.value;
         const fieldName = fieldRef
@@ -349,11 +404,27 @@ function App() {
 
         if (activeFlow === "RETIREMENT") {
           const fields = resources.resources.fields;
-          const viewName = content.pyViewName || "Create";
+          const viewName =
+            resources.root?.config?.name || content.pyViewName || "Create";
           const extractedFields = [];
           const viewConfig = resources.resources.views[viewName]?.[0];
 
-          if (viewConfig && viewConfig.children?.[0]?.children) {
+          const complexTypes = new Set([
+            "reference",
+            "simpletableselect",
+            "deferload",
+            "datatablecolumn",
+            "datareference",
+          ]);
+
+          const hasComplexChildren =
+            viewConfig?.children?.[0]?.children?.some(
+              (c) =>
+                complexTypes.has((c.type || "").toLowerCase()) ||
+                (c.type === "reference" && c.config?.type === "view"),
+            ) ?? false;
+
+          if (!hasComplexChildren && viewConfig?.children?.[0]?.children) {
             const fieldsArray = viewConfig.children[0].children;
             const numericTypes = [
               "integer",
@@ -397,13 +468,44 @@ function App() {
                 });
               }
             });
+
+            setViewFields(extractedFields);
+            const initialData = {};
+            extractedFields.forEach((field) => {
+              initialData[field.name] = content[field.name] ?? "";
+            });
+            setFormData(initialData);
+            setViewStructure(null);
+            setUiResources(null);
+          } else {
+            setViewFields([]);
+            setUiResources(resources.resources);
+            setViewStructure(viewConfig);
+            setAvailableVehicles(content.AvailableVehicles || []);
+            setSelectedVehicleId(content.SelectedVehicleID || "");
+            const skipKeys = new Set([
+              "classID",
+              "pxObjClass",
+              "pxUrgencyWork",
+              "pxCreateOperator",
+              "pxUpdateDateTime",
+              "pxUpdateOperator",
+              "pxCreateDateTime",
+              "pyStatusWork",
+              "AvailableVehicles",
+            ]);
+            const initialData = {};
+            Object.keys(content).forEach((key) => {
+              if (
+                !skipKeys.has(key) &&
+                !Array.isArray(content[key]) &&
+                typeof content[key] !== "object"
+              ) {
+                initialData[key] = content[key] ?? "";
+              }
+            });
+            setFormData(initialData);
           }
-          setViewFields(extractedFields);
-          const initialData = {};
-          extractedFields.forEach((field) => {
-            initialData[field.name] = content[field.name] ?? "";
-          });
-          setFormData(initialData);
         } else {
           const viewName =
             resources.root?.config?.name ||
@@ -442,6 +544,7 @@ function App() {
         }
 
         setStep("ASSIGNMENT_READY");
+        setLoading(false);
       } catch (err) {
         console.error(err);
       }
@@ -635,14 +738,12 @@ function App() {
       if (resData?.nextAssignmentInfo?.ID) {
         const nextAssId = resData.nextAssignmentInfo.ID;
         setAssignmentId(nextAssId);
-        if (activeFlow === "RETIREMENT") {
-          setActiveFlow("PURCHASE");
-        }
         getAssignmentDetails(nextAssId, token);
       } else if (activeFlow === "RETIREMENT") {
         setActiveFlow("PURCHASE");
         createCase(PURCHASE_CASE_TYPE_ID, token);
       } else {
+        setLoading(false);
         setStep("SUCCESS");
       }
     } catch (err) {
@@ -774,7 +875,7 @@ function App() {
                 <p className="subtitle">{layoutInfo.instructions}</p>
 
                 <form onSubmit={submitAction} noValidate>
-                  {activeFlow === "RETIREMENT" ? (
+                  {activeFlow === "RETIREMENT" && viewFields.length > 0 ? (
                     <div className="dynamic-form-grid">
                       {viewFields.map((field) => {
                         const isError = validationErrors.find(
