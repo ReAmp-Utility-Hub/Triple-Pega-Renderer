@@ -308,12 +308,11 @@ function App() {
   const autoAuthenticateRef = useRef(null);
 
   const getAssignmentDetails = useCallback(
-    async (id, passedToken, caseTypeIdOverride) => {
+    async (id, passedToken) => {
       const activeToken = passedToken || token;
-      const caseTypeId = caseTypeIdOverride || (activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID);
       try {
         const response = await fetch(
-          `${API_BASE}/assignments/${id}?viewType=form&caseTypeID=${caseTypeId}`,
+          `${API_BASE}/assignments/${id}?viewType=form`,
           {
             headers: { Authorization: `Bearer ${activeToken}` },
           },
@@ -574,9 +573,8 @@ function App() {
           : formData;
       const method = activeFlow === "RETIREMENT" ? "PATCH" : "POST";
 
-      const caseTypeId = activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
       const response = await fetch(
-        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}?viewType=none&caseTypeID=${caseTypeId}`,
+        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}?viewType=none`,
         {
           method: method,
           headers: {
@@ -639,9 +637,8 @@ function App() {
   const handleRefresh = async (fieldName) => {
     if (activeFlow !== "RETIREMENT") return;
     try {
-      const caseTypeId = activeFlow === "RETIREMENT" ? RETIREMENT_CASE_TYPE_ID : PURCHASE_CASE_TYPE_ID;
       const response = await fetch(
-        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}/refresh?refreshFor=.${fieldName}&caseTypeID=${caseTypeId}`,
+        `${API_BASE}/assignments/${assignmentId}/actions/${actionId}/refresh?refreshFor=.${fieldName}`,
         {
           method: "PATCH",
           headers: {
