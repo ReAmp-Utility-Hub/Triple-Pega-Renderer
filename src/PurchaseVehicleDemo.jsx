@@ -655,8 +655,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
     return (
       <div className="dashboard-wrapper">
         <div className="loading-container fade-in">
-          <h1>Purchase Vehicle</h1>
-          <p className="subtitle">Pega DX API — Purchase Vehicle Workflow</p>
+          <h1>Purchase Vehicle Workflow</h1>
           <div className="btn-group-vertical">
             <button className="btn btn-primary" onClick={start}>
               Start Purchase Flow
