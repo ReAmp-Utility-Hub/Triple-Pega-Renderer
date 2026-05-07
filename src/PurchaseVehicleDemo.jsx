@@ -827,40 +827,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
           </div>
         </main>
       </div>
-
-      <style>{`
-        .pv-stepper { display: flex; align-items: center; width: 100%; max-width: 1000px; margin-bottom: 1.5rem; }
-        .pv-step { display: flex; align-items: center; gap: 8px; position: relative; flex: 1; }
-        .pv-step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--border-color); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-        .pv-step.active .pv-step-num { background: var(--accent-blue); color: white; }
-        .pv-step.done .pv-step-num { background: #16a34a; color: white; }
-        .pv-step-label { font-size: 13px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
-        .pv-step-line { flex: 1; height: 2px; background: var(--border-color); margin: 0 8px; }
-        .pv-case-badge { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 1000px; padding: 10px 16px; background: white; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-bottom: 1rem; }
-        
-        .form-group-container { margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
-        .group-heading { font-size: 1.1rem; color: var(--text-main); margin-bottom: 1rem; border-bottom: 2px solid var(--accent-blue); display: inline-block; padding-bottom: 4px; }
-        
-        .banner { display: flex; align-items: flex-start; gap: 12px; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid; }
-        .banner-info { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
-        .banner-warn { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
-        .banner-icon { font-size: 1.2rem; }
-        
-        .read-only-input { background-color: #f1f5f9; cursor: not-allowed; border-color: #cbd5e1; }
-        textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; }
-        
-        .btn-group-vertical { display: flex; flex-direction: column; gap: 12px; width: 280px; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
-        .modal-content { background: white; padding: 2rem; border-radius: 16px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .modal-content h3 { margin-bottom: 0.5rem; color: var(--text-main); }
-        .modal-content p { margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.95rem; }
-        .modal-input { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; margin-bottom: 1.5rem; outline: none; transition: border-color 0.2s; }
-        .modal-input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      `}</style>
     </div>
   );
 }
