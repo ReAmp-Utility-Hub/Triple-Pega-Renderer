@@ -50,7 +50,8 @@ function extractUIElements(resources, viewName) {
           isTextArea: n.type === "TextArea",
           isBanner: n.type === "Pega_Extensions_BannerInput",
           isDate: n.type === "Date",
-          isEmail: n.type === "Email" || meta.validateAs === "ValidEmailAddress",
+          isEmail:
+            n.type === "Email" || meta.validateAs === "ValidEmailAddress",
           options: meta.datasource?.records || [],
           readOnly: n.config?.readOnly || false,
         });
@@ -145,6 +146,9 @@ export default function PurchaseVehicleDemo({ onBack }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [finalResponse, setFinalResponse] = useState(null);
 
+  const [showModal, setShowModal] = useState(false);
+  const [inputCaseId, setInputCaseId] = useState("");
+
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setFormData((p) => ({
@@ -183,7 +187,18 @@ export default function PurchaseVehicleDemo({ onBack }) {
       instructions: assignment?.name || "",
     });
     setNavSteps(uiRes.navigation?.steps || []);
-    setActionButtons(uiRes.actionButtons || { main: [], secondary: [] });
+
+    let buttons = uiRes.actionButtons || { main: [], secondary: [] };
+    if (
+      action?.links?.save &&
+      !buttons.secondary.some((b) => b.actionID === "save")
+    ) {
+      buttons.secondary.push({
+        actionID: "save",
+        name: action.links.save.title?.trim() || "Save for Later",
+      });
+    }
+    setActionButtons(buttons);
 
     const viewName = uiRes.root?.config?.name || "";
     const resources = uiRes.resources;
@@ -214,6 +229,74 @@ export default function PurchaseVehicleDemo({ onBack }) {
       setPhase("FORM1");
     }
   }, []);
+
+  const handleLookup = useCallback(async () => {
+    if (!inputCaseId.trim()) return;
+    setPhase("LOADING");
+    setError("");
+    try {
+      setLoadingMsg("Authenticating...");
+      const authRes = await fetch(TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
+      });
+      if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
+      const { access_token: tok } = await authRes.json();
+      setToken(tok);
+
+      setLoadingMsg("Looking up case...");
+      const cleanedId = inputCaseId.trim().toUpperCase();
+      const assId = `ASSIGN-WORKLIST OQ7AIU-SMART-WORK ${cleanedId}!SELECTVEHICLE_FLOW`;
+      await getAssignment(assId, tok);
+      setShowModal(false);
+    } catch (err) {
+      console.error(err);
+      setError(`Case lookup failed: ${err.message}. Please check the Case ID.`);
+      setPhase("ERROR");
+    }
+  }, [getAssignment, inputCaseId]);
+
+  const saveForLater = async () => {
+    setPhase("LOADING");
+    setLoadingMsg("Saving progress...");
+    try {
+      const url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/actions/${actionId}/save`;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "If-Match": etag,
+        },
+        body: JSON.stringify({
+          content: { SelectedVehicleID: selectedVehicleId },
+          pageInstructions: [],
+        }),
+      });
+
+      const newEtag = res.headers.get("ETag") || res.headers.get("etag") || "";
+      if (newEtag) setEtag(newEtag);
+
+      if (!res.ok) {
+        const resData = await res.json();
+        const msgs = resData.errorDetails || resData.validationMessages || [];
+        if (msgs.length) {
+          setFormErrors(msgs);
+          setPhase(phase);
+          return;
+        }
+        throw new Error(`Save failed: ${res.status}`);
+      }
+
+      alert("Progress saved successfully!");
+      setPhase(phase);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      setPhase("ERROR");
+    }
+  };
 
   const start = useCallback(async () => {
     setPhase("LOADING");
@@ -270,8 +353,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
       }
       payload = { SelectedVehicleID: selectedVehicleId };
     } else {
-      // Re-construct nested payload from flat formData
-      // Only send fields that are NOT read-only
       const editableFields = [];
       uiElements.forEach((el) => {
         if (el.type === "Group") {
@@ -286,7 +367,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
       const unflatten = (data) => {
         const result = {};
         Object.keys(data).forEach((key) => {
-          // Skip if field is read-only or not in uiElements
           if (!editableFields.includes(key)) return;
 
           const keyParts = key.split(".");
@@ -458,7 +538,13 @@ export default function PurchaseVehicleDemo({ onBack }) {
         ) : (
           <input
             type={
-              el.isNumeric ? "number" : el.isDate ? "date" : el.isEmail ? "email" : "text"
+              el.isNumeric
+                ? "number"
+                : el.isDate
+                  ? "date"
+                  : el.isEmail
+                    ? "email"
+                    : "text"
             }
             name={el.name}
             value={value}
@@ -535,13 +621,43 @@ export default function PurchaseVehicleDemo({ onBack }) {
             <button className="btn btn-primary" onClick={start}>
               Start Purchase Flow
             </button>
-            {onBack && (
-              <button className="btn btn-secondary" onClick={onBack}>
-                ← Back to Menu
-              </button>
-            )}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowModal(true)}
+            >
+              Check Purchase Flow
+            </button>
           </div>
         </div>
+
+        {showModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3>Check Existing Case</h3>
+              <p>Enter the Case ID to continue your purchase journey.</p>
+              <input
+                type="text"
+                className="modal-input"
+                placeholder="e.g. P-19024"
+                value={inputCaseId}
+                onChange={(e) => setInputCaseId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLookup()}
+                autoFocus
+              />
+              <div className="modal-actions">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={handleLookup}>
+                  Lookup Case
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -692,7 +808,13 @@ export default function PurchaseVehicleDemo({ onBack }) {
                     key={btn.actionID}
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => alert(`Action: ${btn.name}`)}
+                    onClick={() => {
+                      if (btn.actionID === "save") {
+                        saveForLater();
+                      } else {
+                        alert(`Action: ${btn.name}`);
+                      }
+                    }}
                   >
                     {btn.name}
                   </button>
@@ -728,6 +850,16 @@ export default function PurchaseVehicleDemo({ onBack }) {
         textarea { width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; }
         
         .btn-group-vertical { display: flex; flex-direction: column; gap: 12px; width: 280px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s ease; }
+        .modal-content { background: white; padding: 2rem; border-radius: 16px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content h3 { margin-bottom: 0.5rem; color: var(--text-main); }
+        .modal-content p { margin-bottom: 1.5rem; color: var(--text-muted); font-size: 0.95rem; }
+        .modal-input { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; margin-bottom: 1.5rem; outline: none; transition: border-color 0.2s; }
+        .modal-input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
