@@ -723,40 +723,63 @@ export default function PurchaseVehicleDemo({ onBack }) {
   }
 
   if (phase === "SUCCESS") {
-    const confirmationNote =
-      finalResponse?.confirmationNote || "Workflow Completed";
+    const confirmationNote = finalResponse?.confirmationNote || "Workflow Completed";
     const caseInfo = finalResponse?.data?.caseInfo || {};
     const finalStatus = caseInfo.status || "Resolved";
+    const stages = caseInfo.stages || [];
 
     return (
       <div className="dashboard-wrapper">
-        <div className="loading-container fade-in">
-          <div style={{ fontSize: "3rem" }}>✅</div>
-          <h1>{confirmationNote}</h1>
-          <p className="subtitle">
-            Case <b>{caseInfo.businessID || caseDetails.businessID}</b> has been
-            updated.
-          </p>
-          <div
-            className="pv-case-badge"
-            style={{ justifyContent: "center", border: "none" }}
-          >
-            <span className="badge" style={{ fontSize: "1rem" }}>
-              Status: {finalStatus}
-            </span>
-          </div>
-          <div className="btn-group-vertical" style={{ marginTop: "2rem" }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Start New Workflow
-            </button>
-            {onBack && (
-              <button className="btn btn-secondary" onClick={onBack}>
-                ← Back to Menu
+        <div className="main-content fade-in" style={{ padding: "60px 24px" }}>
+          <div className="form-container" style={{ textAlign: "center", maxWidth: "600px" }}>
+            <img 
+              src="/case_completed_premium_badge_1778180457093.png" 
+              alt="Success" 
+              style={{ width: "120px", marginBottom: "1.5rem" }} 
+            />
+            <h1 style={{ fontSize: "2rem", color: "#16a34a" }}>{confirmationNote}</h1>
+            <p className="subtitle">Your vehicle purchase case has been successfully processed.</p>
+            
+            <div className="case-summary-table" style={{ margin: "2rem 0", textAlign: "left", background: "#f8fafc", padding: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>Case Summary</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "12px", fontSize: "14px" }}>
+                <div style={{ color: "var(--text-muted)" }}>Business ID</div>
+                <div style={{ fontWeight: "600" }}>{caseInfo.businessID || caseDetails.businessID}</div>
+                
+                <div style={{ color: "var(--text-muted)" }}>Current Status</div>
+                <div><span className="badge" style={{ background: "#dcfce7", color: "#166534" }}>{finalStatus}</span></div>
+                
+                <div style={{ color: "var(--text-muted)" }}>Completion Time</div>
+                <div>{new Date().toLocaleString()}</div>
+                
+                <div style={{ color: "var(--text-muted)" }}>Total Stages</div>
+                <div>{stages.length} Stages Completed</div>
+              </div>
+            </div>
+
+            <div className="stage-timeline" style={{ marginBottom: "2rem" }}>
+              <h3 style={{ textAlign: "left", marginBottom: "1rem", fontSize: "1rem" }}>Journey Completed</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {stages.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", textAlign: "left", padding: "8px 12px", background: "white", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
+                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#16a34a", color: "white", display: "flex", alignItems: "center", justifyCenter: "center", fontSize: "10px" }}>✓</div>
+                    <span style={{ fontSize: "13px", fontWeight: "500" }}>{s.name}</span>
+                    <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>{s.visited_status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="btn-group-vertical" style={{ maxWidth: "100%" }}>
+              <button className="btn btn-primary" onClick={() => window.location.reload()}>
+                Start New Workflow
               </button>
-            )}
+              {onBack && (
+                <button className="btn btn-secondary" onClick={onBack}>
+                  Return to Dashboard
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -799,9 +822,14 @@ export default function PurchaseVehicleDemo({ onBack }) {
             <form onSubmit={submitForm} noValidate>
               {phase === "FORM2" ? (
                 renderCompareTable()
-              ) : (
+              ) : uiElements.length > 0 ? (
                 <div className="dynamic-form-sections">
                   {uiElements.map(renderUIElement)}
+                </div>
+              ) : (
+                <div className="info-message">
+                  <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📋</div>
+                  <p>Please review all information above. Click <strong>Submit</strong> to finalize your vehicle purchase details.</p>
                 </div>
               )}
 
