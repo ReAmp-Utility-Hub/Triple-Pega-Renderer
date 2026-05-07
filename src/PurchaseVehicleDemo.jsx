@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -149,13 +149,19 @@ export default function PurchaseVehicleDemo({ onBack }) {
   const [showModal, setShowModal] = useState(false);
   const [inputCaseId, setInputCaseId] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    setFormData((p) => ({
-      ...p,
-      [name]: type === "number" ? (value === "" ? "" : Number(value)) : value,
-    }));
-  };
+  const ensureToken = useCallback(async () => {
+    if (token) return token;
+    setLoadingMsg("Authenticating...");
+    const authRes = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
+    });
+    if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
+    const { access_token: tok } = await authRes.json();
+    setToken(tok);
+    return tok;
+  }, [token]);
 
   const getAssignment = useCallback(async (assId, tok) => {
     setLoadingMsg("Loading assignment view...");
@@ -230,32 +236,60 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }
   }, []);
 
+  useEffect(() => {
+    ensureToken().catch((e) => console.warn("Initial auth failed", e));
+  }, [ensureToken]);
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setFormData((p) => ({
+      ...p,
+      [name]: type === "number" ? (value === "" ? "" : Number(value)) : value,
+    }));
+  };
+
+
   const handleLookup = useCallback(async () => {
     if (!inputCaseId.trim()) return;
     setPhase("LOADING");
     setError("");
     try {
-      setLoadingMsg("Authenticating...");
-      const authRes = await fetch(TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
-      });
-      if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
-      const { access_token: tok } = await authRes.json();
-      setToken(tok);
+      const tok = await ensureToken();
 
       setLoadingMsg("Looking up case...");
-      const cleanedId = inputCaseId.trim().toUpperCase();
-      const assId = `ASSIGN-WORKLIST OQ7AIU-SMART-WORK ${cleanedId}!SELECTVEHICLE_FLOW`;
-      await getAssignment(assId, tok);
+      const rawId = inputCaseId.trim().toUpperCase();
+      let cleanedId = rawId;
+      
+      if (!cleanedId.includes(" ")) {
+        cleanedId = `OQ7AIU-SMART-WORK ${cleanedId}`;
+      }
+      
+      const caseRes = await fetch(`${API_BASE}/cases/${encodeURIComponent(cleanedId)}`, {
+        headers: { Authorization: `Bearer ${tok}` }
+      });
+      
+      if (!caseRes.ok) {
+        const errData = await caseRes.json();
+        const detail = errData.errorDetails?.[0]?.localizedValue || errData.localizedValue || "Resource not found";
+        throw new Error(`${detail} (${cleanedId})`);
+      }
+      const caseData = await caseRes.json();
+      
+      const caseInfo = caseData.data?.caseInfo || {};
+      const nextAssId = caseInfo.assignments?.[0]?.ID;
+      if (!nextAssId) {
+        throw new Error("No active assignment found for this case.");
+      }
+
+      await getAssignment(nextAssId, tok);
       setShowModal(false);
+      setLoadingMsg("");
     } catch (err) {
       console.error(err);
-      setError(`Case lookup failed: ${err.message}. Please check the Case ID.`);
+      setError(`Case lookup failed: ${err.message}`);
       setPhase("ERROR");
     }
-  }, [getAssignment, inputCaseId]);
+  }, [getAssignment, inputCaseId, ensureToken]);
 
   const saveForLater = async () => {
     setPhase("LOADING");
@@ -302,15 +336,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
     setPhase("LOADING");
     setError("");
     try {
-      setLoadingMsg("Authenticating...");
-      const authRes = await fetch(TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
-      });
-      if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
-      const { access_token: tok } = await authRes.json();
-      setToken(tok);
+      const tok = await ensureToken();
 
       setLoadingMsg("Creating case...");
       const caseRes = await fetch(`${API_BASE}/cases?viewType=none`, {
