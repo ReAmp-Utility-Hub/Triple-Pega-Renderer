@@ -49,6 +49,8 @@ function extractUIElements(resources, viewName) {
           isDropdown: n.type === "Dropdown" || n.type === "AutoComplete",
           isTextArea: n.type === "TextArea",
           isBanner: n.type === "Pega_Extensions_BannerInput",
+          isDate: n.type === "Date",
+          isEmail: n.type === "Email" || meta.validateAs === "ValidEmailAddress",
           options: meta.datasource?.records || [],
           readOnly: n.config?.readOnly || false,
         });
@@ -455,7 +457,9 @@ export default function PurchaseVehicleDemo({ onBack }) {
           />
         ) : (
           <input
-            type={el.isNumeric ? "number" : "text"}
+            type={
+              el.isNumeric ? "number" : el.isDate ? "date" : el.isEmail ? "email" : "text"
+            }
             name={el.name}
             value={value}
             onChange={handleChange}
@@ -503,13 +507,16 @@ export default function PurchaseVehicleDemo({ onBack }) {
             <td className="row-label">Select</td>
             {availableVehicles.map((v) => (
               <td key={v.ID} style={{ textAlign: "center" }}>
-                <input
-                  type="radio"
-                  name="selectedVehicle"
-                  value={v.ID}
-                  checked={selectedVehicleId === v.ID}
-                  onChange={() => setSelectedVehicleId(v.ID)}
-                />
+                <button
+                  type="button"
+                  className={`btn ${
+                    selectedVehicleId === v.ID ? "btn-primary" : "btn-outline"
+                  }`}
+                  style={{ width: "100%" }}
+                  onClick={() => setSelectedVehicleId(v.ID)}
+                >
+                  {selectedVehicleId === v.ID ? "Selected" : "Select"}
+                </button>
               </td>
             ))}
           </tr>
@@ -646,9 +653,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
           <div className="form-container fade-in">
             <h1>{caseDetails.instructions}</h1>
-            <p className="subtitle">
-              Please review or complete the information below.
-            </p>
 
             <form onSubmit={submitForm} noValidate>
               {phase === "FORM2" ? (
@@ -659,11 +663,9 @@ export default function PurchaseVehicleDemo({ onBack }) {
                 </div>
               )}
 
-              {/* Global Errors (e.g. .pyCommitError) */}
               {formErrors.length > 0 &&
                 formErrors
                   .filter((e) => {
-                    // Filter out errors that are already mapped to specific fields
                     const fieldNames = uiElements.flatMap((el) =>
                       el.type === "Group"
                         ? el.children.map((c) => c.name)

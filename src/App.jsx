@@ -128,6 +128,7 @@ const VehicleComparisonTable = ({
                   className={`btn ${
                     selectedId === vehicle.ID ? "btn-primary" : "btn-outline"
                   }`}
+                  style={{ width: "100%" }}
                   onClick={() => onSelect(vehicle.ID)}
                 >
                   {selectedId === vehicle.ID ? "Selected" : "Select"}
@@ -267,7 +268,18 @@ const renderNestedForm = (
                           <td>{JSON.stringify(row)}</td>
                         )}
                         <td>
-                          <input type="checkbox" disabled />
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            style={{
+                              padding: "4px 12px",
+                              height: "32px",
+                              fontSize: "12px",
+                              width: "100%",
+                            }}
+                          >
+                            Select
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -351,7 +363,12 @@ const renderNestedForm = (
               )}
             </label>
             <input
-              type="text"
+              type={
+                child.type === "Email" ||
+                fieldMetadata.validateAs === "ValidEmailAddress"
+                  ? "email"
+                  : "text"
+              }
               name={valueField}
               value={value}
               onChange={handleChange}
@@ -398,7 +415,14 @@ const renderNestedForm = (
               )}
             </label>
             <input
-              type="text"
+              type={
+                child.type === "Date"
+                  ? "date"
+                  : child.type === "Email" ||
+                      fieldMetadata.validateAs === "ValidEmailAddress"
+                    ? "email"
+                    : "text"
+              }
               name={fieldName}
               value={value}
               onChange={handleChange}
@@ -565,7 +589,11 @@ function App() {
                     ? "number"
                     : typeLower === "checkbox"
                       ? "checkbox"
-                      : "text",
+                      : typeLower === "date"
+                        ? "date"
+                        : typeLower === "email"
+                          ? "email"
+                          : "text",
                   label: fieldMetadata.label || fieldName,
                   required:
                     fieldObj.config.required === true ||
@@ -772,40 +800,37 @@ function App() {
     [getAssignmentDetails, token],
   );
 
-  const autoAuthenticate = useCallback(
-    async (startFlow = "RETIREMENT") => {
-      setLoading(true);
-      setStep("LOADING");
-      setLoadingMessage("Authenticating with Pega...");
-      try {
-        const params = new URLSearchParams();
-        params.append("grant_type", "client_credentials");
-        params.append("client_id", CLIENT_ID);
-        params.append("client_secret", CLIENT_SECRET);
-        const response = await fetch(TOKEN_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: params,
-        });
-        if (!response.ok)
-          throw new Error(`Auth failed with status: ${response.status}`);
-        const data = await response.json();
-        setToken(data.access_token);
+  const autoAuthenticate = useCallback(async () => {
+    setLoading(true);
+    setStep("LOADING");
+    setLoadingMessage("Authenticating with Pega...");
+    try {
+      const params = new URLSearchParams();
+      params.append("grant_type", "client_credentials");
+      params.append("client_id", CLIENT_ID);
+      params.append("client_secret", CLIENT_SECRET);
+      const response = await fetch(TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+      });
+      if (!response.ok)
+        throw new Error(`Auth failed with status: ${response.status}`);
+      const data = await response.json();
+      setToken(data.access_token);
 
-        setCurrentFlowIndex(0);
-        setFlowSequence(["RETIREMENT", "INSPECTION", "PURCHASE"]);
-        setActiveFlow("RETIREMENT");
-        createCase(RETIREMENT_CASE_TYPE_ID, data.access_token);
-      } catch (err) {
-        console.error(err);
-        setLoadingMessage(`Error: ${err.message}`);
-        setTimeout(() => setStep("INIT"), 3000);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [createCase],
-  );
+      setCurrentFlowIndex(0);
+      setFlowSequence(["RETIREMENT", "INSPECTION", "PURCHASE"]);
+      setActiveFlow("RETIREMENT");
+      createCase(RETIREMENT_CASE_TYPE_ID, data.access_token);
+    } catch (err) {
+      console.error(err);
+      setLoadingMessage(`Error: ${err.message}`);
+      setTimeout(() => setStep("INIT"), 3000);
+    } finally {
+      setLoading(false);
+    }
+  }, [createCase]);
 
   useEffect(() => {
     autoAuthenticateRef.current = autoAuthenticate;
