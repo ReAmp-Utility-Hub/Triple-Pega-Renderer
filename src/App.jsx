@@ -1059,6 +1059,7 @@ function App() {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const renderDemoMenu = () => (
     <div className="loading-container fade-in">
       <h1>Triple Renderer Hub</h1>
@@ -1364,10 +1365,7 @@ function App() {
             Retirement → Inspection → Purchase flows have been processed
             successfully.
           </p>
-          <button
-            className="btn btn-secondary"
-            onClick={handleResetToPurchase}
-          >
+          <button className="btn btn-secondary" onClick={handleResetToPurchase}>
             Back to Start
           </button>
         </div>
