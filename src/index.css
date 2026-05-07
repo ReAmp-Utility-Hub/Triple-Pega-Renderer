@@ -651,10 +651,10 @@ select.has-icon-right {
 .form-group-container { margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
 .group-heading { font-size: 1.1rem; color: var(--text-main); margin-bottom: 1rem; border-bottom: 2px solid var(--accent-blue); display: inline-block; padding-bottom: 4px; }
 
-.banner { display: flex; align-items: flex-start; gap: 12px; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid; }
-.banner-info { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
-.banner-warn { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
-.banner-icon { font-size: 1.2rem; }
+.banner { display: flex; align-items: center; padding: 0.875rem 1.25rem; border-radius: 6px; margin-bottom: 1.5rem; border: 1px solid; border-left-width: 6px; }
+.banner-info { background: #f0fdf4; border-color: #22c55e; color: #166534; }
+.banner-warn { background: #fef2f2; border-color: #ef4444; color: #b91c1c; }
+.banner-icon { display: none; }
 
 .read-only-input { background-color: #f1f5f9; cursor: not-allowed; border-color: #cbd5e1; }
 
