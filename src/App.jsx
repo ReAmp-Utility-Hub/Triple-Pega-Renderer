@@ -445,6 +445,7 @@ const renderNestedForm = (
 
 function App() {
   const [activeDemo, setActiveDemo] = useState("PURCHASE");
+  const [resetKey, setResetKey] = useState(0);
   const [step, setStep] = useState("INIT");
   const [activeFlow, setActiveFlow] = useState("RETIREMENT");
   const [flowSequence, setFlowSequence] = useState([
@@ -478,6 +479,11 @@ function App() {
     type: "",
     businessID: "",
   });
+
+  const handleResetToPurchase = useCallback(() => {
+    setActiveDemo("PURCHASE");
+    setResetKey((prev) => prev + 1);
+  }, []);
 
   const [layoutInfo, setLayoutInfo] = useState({
     title: "",
@@ -1081,16 +1087,18 @@ function App() {
   );
 
   if (activeDemo === "INSPECTION") {
-    return <InspectionDemo onBack={() => setActiveDemo("MENU")} />;
+    return <InspectionDemo onBack={handleResetToPurchase} />;
   }
 
   if (activeDemo === "PURCHASE") {
-    return <PurchaseVehicleDemo onBack={() => setActiveDemo("MENU")} />;
+    return (
+      <PurchaseVehicleDemo key={resetKey} onBack={handleResetToPurchase} />
+    );
   }
 
   return (
     <div className="dashboard-wrapper">
-      {activeDemo === "MENU" && renderDemoMenu()}
+      {/* {activeDemo === "MENU" && renderDemoMenu()} */}
 
       {activeDemo === "RETIREMENT_PURCHASE" && step === "INIT" && (
         <div className="loading-container fade-in">
@@ -1109,10 +1117,10 @@ function App() {
             </button>
             <button
               className="btn btn-secondary"
-              onClick={() => setActiveDemo("MENU")}
+              onClick={handleResetToPurchase}
               style={{ marginTop: "1rem" }}
             >
-              Back to Menu
+              Back to Start
             </button>
           </div>
         </div>
@@ -1358,9 +1366,9 @@ function App() {
           </p>
           <button
             className="btn btn-secondary"
-            onClick={() => setActiveDemo("MENU")}
+            onClick={handleResetToPurchase}
           >
-            Back to Menu
+            Back to Start
           </button>
         </div>
       )}
