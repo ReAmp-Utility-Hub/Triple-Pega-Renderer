@@ -523,7 +523,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
   };
 
   const renderUIElement = (el) => {
-    // Handle Group type
     if (el.type === "Group") {
       return (
         <div className="form-group-container" key={el.heading}>
@@ -532,7 +531,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
             {el.children.map((child) => (
               <DynamicField
                 key={child.name}
-                field={child}
+                field={child.name}
                 value={formData[child.name]}
                 onChange={handleFieldChange}
                 error={
