@@ -275,8 +275,8 @@ export default function PurchaseVehicleDemo({ onBack }) {
         const detail =
           errData.errorDetails?.[0]?.localizedValue ||
           errData.localizedValue ||
-          "Resource not found";
-        throw new Error(`${detail} (${cleanedId})`);
+          "Case not found";
+        throw new Error(detail);
       }
       const caseData = await caseRes.json();
 
@@ -291,7 +291,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
       setLoadingMsg("");
     } catch (err) {
       console.error(err);
-      setError(`Case lookup failed: ${err.message}`);
+      setError(`${err.message}`);
       setPhase("ERROR");
     }
   }, [getAssignment, inputCaseId, ensureToken]);
@@ -716,17 +716,28 @@ export default function PurchaseVehicleDemo({ onBack }) {
     return (
       <div className="dashboard-wrapper">
         <div className="loading-container fade-in">
-          <h1>Something went wrong</h1>
-          <p className="subtitle" style={{ color: "#dc2626" }}>
+          <p
+            className="subtitle"
+            style={{ color: "#dc2626", fontWeight: "500" }}
+          >
             {error}
           </p>
           <div className="btn-group-vertical">
-            <button className="btn btn-primary" onClick={start}>
-              Retry
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setPhase("INIT");
+                setShowModal(true);
+              }}
+            >
+              Check Another Case ID
+            </button>
+            <button className="btn btn-secondary" onClick={start}>
+              Start New Purchase
             </button>
             {onBack && (
-              <button className="btn btn-secondary" onClick={onBack}>
-                ← Back
+              <button className="btn btn-outline" onClick={onBack}>
+                ← Back to Menu
               </button>
             )}
           </div>
