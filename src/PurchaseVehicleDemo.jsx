@@ -673,11 +673,13 @@ export default function PurchaseVehicleDemo({ onBack }) {
           <div className="modal-overlay">
             <div className="modal-content">
               <h3>Check Existing Case</h3>
-              <p>Enter the Case ID to continue your purchase journey.</p>
+              <p>
+                Enter the Case ID to continue your existing purchase journey.
+              </p>
               <input
                 type="text"
                 className="modal-input"
-                placeholder="e.g. P-19024"
+                placeholder="e.g. P-20001"
                 value={inputCaseId}
                 onChange={(e) => setInputCaseId(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLookup()}
