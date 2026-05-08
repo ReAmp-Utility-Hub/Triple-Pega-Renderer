@@ -264,7 +264,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
       }
 
       const caseRes = await fetch(
-        `${API_BASE}/cases/${encodeURIComponent(cleanedId)}`,
+        `${API_BASE}/cases/${encodeURIComponent(cleanedId)}?viewType=page`,
         {
           headers: { Authorization: `Bearer ${tok}` },
         },
