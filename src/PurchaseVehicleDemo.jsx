@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { DynamicField, extractFieldsFromView } from "./DynamicFieldRenderer";
 
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -19,6 +20,7 @@ const cleanLabel = (s = "") => {
   return cleaned;
 };
 
+// eslint-disable-next-line no-unused-vars
 function extractUIElements(resources, viewName) {
   const view = resources?.views?.[viewName]?.[0];
   if (!view) return [];
@@ -215,7 +217,8 @@ export default function PurchaseVehicleDemo({ onBack }) {
       setSelectedVehicleId(content.SelectedVehicleID || "");
       setPhase("FORM2");
     } else {
-      const elements = extractUIElements(resources, viewName);
+      const viewConfig = resources?.views?.[viewName]?.[0];
+      const elements = extractFieldsFromView(viewConfig, resources);
       setUiElements(elements);
 
       const flat = {};
@@ -240,6 +243,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
     ensureToken().catch((e) => console.warn("Initial auth failed", e));
   }, [ensureToken]);
 
+  // eslint-disable-next-line no-unused-vars
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setFormData((p) => ({
@@ -514,19 +518,38 @@ export default function PurchaseVehicleDemo({ onBack }) {
       </div>
     );
 
+  const handleFieldChange = (fieldName, value) => {
+    setFormData((p) => ({ ...p, [fieldName]: value }));
+  };
+
   const renderUIElement = (el) => {
+    // Handle Group type
     if (el.type === "Group") {
       return (
         <div className="form-group-container" key={el.heading}>
           <h3 className="group-heading">{el.heading}</h3>
           <div className="dynamic-form-grid">
-            {el.children.map(renderUIElement)}
+            {el.children.map((child) => (
+              <DynamicField
+                key={child.name}
+                field={child}
+                value={formData[child.name]}
+                onChange={handleFieldChange}
+                error={
+                  formErrors.find(
+                    (e) =>
+                      e.erroneousInputOutputIdentifier === `.${child.name}`,
+                  )?.localizedValue
+                }
+              />
+            ))}
           </div>
         </div>
       );
     }
 
-    if (el.isBanner) {
+    // Handle Banner type (Pega_Extensions_BannerInput)
+    if (el.type === "Pega_Extensions_BannerInput") {
       const isAligned = formData.BudgetAlligned ?? contentData.BudgetAlligned;
       const elVariant = el.config?.variant || "info";
 
@@ -545,61 +568,19 @@ export default function PurchaseVehicleDemo({ onBack }) {
       );
     }
 
-    const err = formErrors.find(
-      (e) => e.erroneousInputOutputIdentifier === `.${el.name}`,
-    );
-    const value = formData[el.name] ?? "";
-
+    // Handle regular fields using DynamicField component
     return (
-      <div className="form-group" key={el.name}>
-        {el.label && <label>{el.label}</label>}
-        {el.isDropdown ? (
-          <select
-            name={el.name}
-            value={value}
-            onChange={handleChange}
-            disabled={el.readOnly}
-          >
-            <option value="">Select {el.label}...</option>
-            {el.options.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.value}
-              </option>
-            ))}
-          </select>
-        ) : el.isTextArea ? (
-          <textarea
-            name={el.name}
-            value={value}
-            onChange={handleChange}
-            readOnly={el.readOnly}
-            placeholder={el.label}
-          />
-        ) : (
-          <input
-            type={
-              el.isNumeric
-                ? "number"
-                : el.isDate
-                  ? "date"
-                  : el.isEmail
-                    ? "email"
-                    : "text"
-            }
-            name={el.name}
-            value={value}
-            onChange={handleChange}
-            readOnly={el.readOnly}
-            placeholder={el.label}
-            className={el.readOnly ? "read-only-input" : ""}
-          />
-        )}
-        {err && (
-          <div className="error-message">
-            {err.localizedValue || err.message}
-          </div>
-        )}
-      </div>
+      <DynamicField
+        key={el.name}
+        field={el}
+        value={formData[el.name]}
+        onChange={handleFieldChange}
+        error={
+          formErrors.find(
+            (e) => e.erroneousInputOutputIdentifier === `.${el.name}`,
+          )?.localizedValue
+        }
+      />
     );
   };
 
