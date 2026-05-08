@@ -123,7 +123,7 @@ export const applyMask = (value, maskPattern) => {
  */
 export const getMaskPlaceholder = (maskPattern) => {
   if (!maskPattern) return "";
-  return maskPattern.replace(/0/g, "#");
+  return maskPattern;
 };
 
 /**
