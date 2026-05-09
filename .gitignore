@@ -29,3 +29,8 @@ dist-ssr
 
 # Documentation files
 src/DynamicFieldRenderer.README.md
+
+# Package lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
