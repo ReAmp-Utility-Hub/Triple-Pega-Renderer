@@ -63,12 +63,13 @@ export const mapFieldType = (componentType, fieldMetadata = {}) => {
   const type = componentType || fieldMetadata.type || "Text";
   const typeLower = type.toLowerCase();
 
-  // Component type mapping
   const typeMap = {
     integer: { inputType: "number", category: "input", isNumeric: true },
     decimal: { inputType: "number", category: "input", isNumeric: true },
     email: { inputType: "email", category: "input" },
     date: { inputType: "date", category: "input" },
+    datetime: { inputType: "datetime-local", category: "input" },
+    "datetime-local": { inputType: "datetime-local", category: "input" },
     textinput: { inputType: "text", category: "input" },
     dropdown: { inputType: "select", category: "select" },
     autocomplete: { inputType: "text", category: "autocomplete" },
@@ -327,7 +328,19 @@ export const DynamicField = ({
     [field, onChange],
   );
 
-  const displayValue = value ?? "";
+  let displayValue = value ?? "";
+
+  if (displayValue && typeof displayValue === "string") {
+    if (field.inputType === "date" && displayValue.includes("T")) {
+      displayValue = displayValue.split("T")[0];
+    } else if (
+      field.inputType === "datetime-local" &&
+      displayValue.includes("T")
+    ) {
+      displayValue = displayValue.substring(0, 16);
+    }
+  }
+
   const showError = error && (touched || error);
 
   // Render based on field category

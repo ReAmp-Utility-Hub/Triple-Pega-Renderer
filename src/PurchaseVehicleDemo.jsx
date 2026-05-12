@@ -51,7 +51,7 @@ function extractUIElements(resources, viewName) {
           isDropdown: n.type === "Dropdown" || n.type === "AutoComplete",
           isTextArea: n.type === "TextArea",
           isBanner: n.type === "Pega_Extensions_BannerInput",
-          isDate: n.type === "Date",
+          isDate: n.type === "Date" || n.type === "DateTime",
           isEmail:
             n.type === "Email" || meta.validateAs === "ValidEmailAddress",
           options: meta.datasource?.records || [],
