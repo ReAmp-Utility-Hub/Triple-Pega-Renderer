@@ -11,7 +11,7 @@ const cleanLabel = (s = "") => {
   let cleaned = s
     .replace(/^@(FL|L)\s*\.?/, "")
     .replace(/AvailableVehicles\./g, "")
-    .replace(/SeletedVehicle\./g, "")
+    .replace(/SelectedVehicle\./g, "")
     .replace(/Engine\./g, "");
 
   if (cleaned.includes(".") && !cleaned.includes(" ")) {
@@ -383,7 +383,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
       setError(err.message);
       setPhase("ERROR");
     }
-  }, [getAssignment]);
+  }, [getAssignment, ensureToken]);
 
   const submitForm = async (e) => {
     if (e) e.preventDefault();
@@ -549,7 +549,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
     // Handle Banner type (Pega_Extensions_BannerInput)
     if (el.type === "Pega_Extensions_BannerInput") {
-      const isAligned = formData.BudgetAlligned ?? contentData.BudgetAlligned;
+      const isAligned = formData.BudgetAligned ?? contentData.BudgetAligned;
       const elVariant = el.config?.variant || "info";
 
       if (isAligned && elVariant !== "info") return null;
