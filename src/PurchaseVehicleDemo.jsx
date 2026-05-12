@@ -522,6 +522,109 @@ export default function PurchaseVehicleDemo({ onBack }) {
     setFormData((p) => ({ ...p, [fieldName]: value }));
   };
 
+  const handleRefresh = useCallback(
+    async (fieldName) => {
+      if (!assignmentId || !actionId) return;
+
+      try {
+        const url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/actions/${actionId}/refresh?refreshFor=.${fieldName}`;
+        const editableFields = [];
+        uiElements.forEach((el) => {
+          if (el.type === "Group") {
+            el.children.forEach((c) => {
+              if (!c.readOnly) editableFields.push(c.name);
+            });
+          } else if (!el.readOnly && !el.isBanner) {
+            editableFields.push(el.name);
+          }
+        });
+
+        const unflatten = (data) => {
+          const result = {};
+          Object.keys(data).forEach((key) => {
+            if (!editableFields.includes(key)) return;
+            const parts = key.split(".");
+            let current = result;
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i];
+              if (i === parts.length - 1) {
+                current[part] = data[key];
+              } else {
+                current[part] = current[part] || {};
+                current = current[part];
+              }
+            }
+          });
+          return result;
+        };
+
+        const payload = unflatten(formData);
+
+        const res = await fetch(url, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "If-Match": etag,
+          },
+          body: JSON.stringify({ content: payload }),
+        });
+
+        const resData = await res.json();
+
+        const newEtag =
+          res.headers.get("ETag") || res.headers.get("etag") || "";
+        if (newEtag) setEtag(newEtag);
+
+        if (!res.ok) {
+          const msgs = resData.errorDetails || resData.validationMessages || [];
+          if (msgs.length) {
+            setFormErrors((prev) => {
+              const otherErrors = prev.filter(
+                (e) =>
+                  e.erroneousInputOutputIdentifier &&
+                  e.erroneousInputOutputIdentifier !== `.${fieldName}`,
+              );
+              return [...otherErrors, ...msgs];
+            });
+          }
+          return;
+        }
+
+        setFormErrors((prev) =>
+          prev.filter(
+            (e) =>
+              e.erroneousInputOutputIdentifier &&
+              e.erroneousInputOutputIdentifier !== `.${fieldName}`,
+          ),
+        );
+
+        if (resData.data?.caseInfo?.content) {
+          const content = resData.data.caseInfo.content;
+          setContentData(content);
+
+          const flat = {};
+          const mapContent = (obj, prefix = "") => {
+            Object.keys(obj).forEach((k) => {
+              const val = obj[k];
+              const path = prefix ? `${prefix}.${k}` : k;
+              if (val && typeof val === "object" && !Array.isArray(val)) {
+                mapContent(val, path);
+              } else {
+                flat[path] = val;
+              }
+            });
+          };
+          mapContent(content);
+          setFormData((p) => ({ ...p, ...flat }));
+        }
+      } catch (err) {
+        console.error("Refresh failed:", err);
+      }
+    },
+    [assignmentId, actionId, token, etag, formData, uiElements],
+  );
+
   const renderUIElement = (el) => {
     if (el.type === "Group") {
       return (
@@ -531,9 +634,10 @@ export default function PurchaseVehicleDemo({ onBack }) {
             {el.children.map((child) => (
               <DynamicField
                 key={child.name}
-                field={child.name}
+                field={child}
                 value={formData[child.name]}
                 onChange={handleFieldChange}
+                onBlur={handleRefresh}
                 error={
                   formErrors.find(
                     (e) =>
@@ -547,7 +651,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
       );
     }
 
-    // Handle Banner type (Pega_Extensions_BannerInput)
     if (el.type === "Pega_Extensions_BannerInput") {
       const isAligned = formData.BudgetAligned ?? contentData.BudgetAligned;
       const elVariant = el.config?.variant || "info";
@@ -567,13 +670,13 @@ export default function PurchaseVehicleDemo({ onBack }) {
       );
     }
 
-    // Handle regular fields using DynamicField component
     return (
       <DynamicField
         key={el.name}
         field={el}
         value={formData[el.name]}
         onChange={handleFieldChange}
+        onBlur={handleRefresh}
         error={
           formErrors.find(
             (e) => e.erroneousInputOutputIdentifier === `.${el.name}`,
@@ -905,6 +1008,44 @@ export default function PurchaseVehicleDemo({ onBack }) {
             <h1>{caseDetails.instructions}</h1>
 
             <form onSubmit={submitForm} noValidate>
+              {formErrors.length > 0 && (
+                <div
+                  className="global-errors-container"
+                  style={{ marginBottom: "1.5rem" }}
+                >
+                  {formErrors
+                    .filter((e) => {
+                      const fieldNames = uiElements.flatMap((el) =>
+                        el.type === "Group"
+                          ? el.children.map((c) => c.name)
+                          : [el.name],
+                      );
+                      const isFieldSpecific = fieldNames.some(
+                        (name) =>
+                          e.erroneousInputOutputIdentifier === `.${name}`,
+                      );
+                      return !isFieldSpecific;
+                    })
+                    .map((e, i) => (
+                      <div
+                        key={i}
+                        className="banner banner-warn"
+                        style={{
+                          marginBottom: "0.5rem",
+                          borderLeft: "4px solid #dc2626",
+                          background: "#fef2f2",
+                          color: "#991b1b",
+                        }}
+                      >
+                        <div className="banner-content">
+                          <strong>Form Error:</strong>{" "}
+                          {e.localizedValue || e.message}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
               {phase === "FORM2" ? (
                 renderCompareTable()
               ) : uiElements.length > 0 ? (
@@ -923,29 +1064,6 @@ export default function PurchaseVehicleDemo({ onBack }) {
                   </p>
                 </div>
               )}
-
-              {formErrors.length > 0 &&
-                formErrors
-                  .filter((e) => {
-                    const fieldNames = uiElements.flatMap((el) =>
-                      el.type === "Group"
-                        ? el.children.map((c) => c.name)
-                        : [el.name],
-                    );
-                    return !fieldNames.some(
-                      (name) => e.erroneousInputOutputIdentifier === `.${name}`,
-                    );
-                  })
-                  .map((e, i) => (
-                    <div
-                      key={i}
-                      className="error-message global-error"
-                      style={{ marginTop: "1.5rem", padding: "12px" }}
-                    >
-                      <strong>Server Error:</strong>{" "}
-                      {e.localizedValue || e.message || "Unknown error"}
-                    </div>
-                  ))}
 
               <div className="btn-group" style={{ marginTop: "2rem" }}>
                 {actionButtons.secondary.map((btn) => (
