@@ -645,6 +645,47 @@ export default function PurchaseVehicleDemo({ onBack }) {
     [assignmentId, actionId, token, etag, formData, uiElements, phase],
   );
 
+  const handleCancel = async () => {
+    if (!assignmentId) return;
+
+    const currentIndex = navSteps.findIndex(
+      (s) => s.visited_status === "current",
+    );
+    if (currentIndex <= 0) {
+      alert("No previous step available.");
+      return;
+    }
+
+    const prevStep = navSteps[currentIndex - 1];
+    setPhase("LOADING");
+    setLoadingMsg("Returning to previous step...");
+
+    try {
+      const url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/navigation/steps/${encodeURIComponent(prevStep.ID)}`;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "If-Match": etag,
+        },
+      });
+
+      if (!res.ok) throw new Error(`Navigation failed: ${res.status}`);
+
+      const resData = await res.json();
+      const nextAssId = resData.nextAssignmentInfo?.ID;
+      if (nextAssId) {
+        await getAssignment(nextAssId, token);
+      } else {
+        setPhase("FORM1");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      setPhase("ERROR");
+    }
+  };
+
   const renderUIElement = (el) => {
     if (el.type === "Group") {
       return (
@@ -1100,6 +1141,8 @@ export default function PurchaseVehicleDemo({ onBack }) {
                           uiElements.find((el) => el.type === "Group")
                             ?.children?.[0];
                         handleRefresh(firstField?.name || "pyID", true);
+                      } else if (btn.actionID === "cancel") {
+                        handleCancel();
                       } else {
                         alert(`Action: ${btn.name}`);
                       }
