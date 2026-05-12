@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { DynamicField, extractFieldsFromView } from "./DynamicFieldRenderer";
 
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
@@ -151,18 +151,30 @@ export default function PurchaseVehicleDemo({ onBack }) {
   const [showModal, setShowModal] = useState(false);
   const [inputCaseId, setInputCaseId] = useState("");
 
+  const authPromise = useRef(null);
+
   const ensureToken = useCallback(async () => {
     if (token) return token;
-    setLoadingMsg("Authenticating...");
-    const authRes = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
-    });
-    if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
-    const { access_token: tok } = await authRes.json();
-    setToken(tok);
-    return tok;
+    if (authPromise.current) return authPromise.current;
+
+    authPromise.current = (async () => {
+      try {
+        setLoadingMsg("Authenticating...");
+        const authRes = await fetch(TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`,
+        });
+        if (!authRes.ok) throw new Error(`Auth failed: ${authRes.status}`);
+        const { access_token: tok } = await authRes.json();
+        setToken(tok);
+        return tok;
+      } finally {
+        authPromise.current = null;
+      }
+    })();
+
+    return authPromise.current;
   }, [token]);
 
   const getAssignment = useCallback(async (assId, tok) => {

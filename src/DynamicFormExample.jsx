@@ -1,6 +1,6 @@
 /**
  * Example: Using DynamicFieldRenderer with Pega API Response
- * 
+ *
  * This demonstrates how to use the DynamicForm component with the JSON
  * response structure you provided.
  */
@@ -230,9 +230,15 @@ export function PegaFormExample() {
       actionButtons: {
         secondary: [
           { jsAction: "cancelAssignment", name: "Cancel", actionID: "cancel" },
-          { jsAction: "fillFormWithAI", name: "Fill form with AI", actionID: "fillFormWithAI" },
+          {
+            jsAction: "fillFormWithAI",
+            name: "Fill form with AI",
+            actionID: "fillFormWithAI",
+          },
         ],
-        main: [{ jsAction: "finishAssignment", name: "Submit", actionID: "submit" }],
+        main: [
+          { jsAction: "finishAssignment", name: "Submit", actionID: "submit" },
+        ],
       },
     },
   };
@@ -242,7 +248,9 @@ export function PegaFormExample() {
       e.preventDefault();
 
       // Client-side validation
-      const viewConfig = exampleApiResponse.uiResources.resources.views.CollectCustomerDetails[0];
+      const viewConfig =
+        exampleApiResponse.uiResources.resources.views
+          .CollectCustomerDetails[0];
       const uiResources = exampleApiResponse.uiResources.resources;
       const fields = extractFieldsFromView(viewConfig, uiResources);
 
@@ -250,7 +258,10 @@ export function PegaFormExample() {
       fields.forEach((field) => {
         if (field.type === "Group") {
           field.children.forEach((childField) => {
-            const fieldErrors = validateField(formData[childField.name], childField);
+            const fieldErrors = validateField(
+              formData[childField.name],
+              childField,
+            );
             if (fieldErrors.length > 0) {
               newErrors.push({
                 erroneousInputOutputIdentifier: `.${childField.name}`,
@@ -283,12 +294,13 @@ export function PegaFormExample() {
         setLoading(false);
       }
     },
-    [formData]
+    [formData],
   );
 
   // Accessing specific field information examples:
   const uiResources = exampleApiResponse.uiResources.resources;
-  const viewConfig = exampleApiResponse.uiResources.resources.views.CollectCustomerDetails[0];
+  const viewConfig =
+    exampleApiResponse.uiResources.resources.views.CollectCustomerDetails[0];
 
   // 1. Get field metadata (type, validateAs, maxLength, etc.)
   const budgetMetadata = getFieldMetadata("BudgetAmount", uiResources);
@@ -327,7 +339,14 @@ export function PegaFormExample() {
       />
 
       {/* Debug: Show extracted field info */}
-      <div style={{ marginTop: "2rem", padding: "1rem", background: "#f1f5f9", borderRadius: "8px" }}>
+      <div
+        style={{
+          marginTop: "2rem",
+          padding: "1rem",
+          background: "#f1f5f9",
+          borderRadius: "8px",
+        }}
+      >
         <h4>Field Metadata Debug</h4>
         <pre style={{ fontSize: "12px", overflow: "auto" }}>
           {JSON.stringify(
@@ -340,7 +359,7 @@ export function PegaFormExample() {
               mask: f.mask,
             })),
             null,
-            2
+            2,
           )}
         </pre>
       </div>
@@ -428,25 +447,41 @@ export function ManualFieldExample() {
           field={customerIdField}
           value={formData.CustomerID}
           onChange={handleChange}
-          error={errors.find((e) => e.erroneousInputOutputIdentifier === ".CustomerID")?.localizedValue}
+          error={
+            errors.find(
+              (e) => e.erroneousInputOutputIdentifier === ".CustomerID",
+            )?.localizedValue
+          }
         />
         <DynamicField
           field={emailField}
           value={formData.CustomerEmail}
           onChange={handleChange}
-          error={errors.find((e) => e.erroneousInputOutputIdentifier === ".CustomerEmail")?.localizedValue}
+          error={
+            errors.find(
+              (e) => e.erroneousInputOutputIdentifier === ".CustomerEmail",
+            )?.localizedValue
+          }
         />
         <DynamicField
           field={budgetField}
           value={formData.BudgetAmount}
           onChange={handleChange}
-          error={errors.find((e) => e.erroneousInputOutputIdentifier === ".BudgetAmount")?.localizedValue}
+          error={
+            errors.find(
+              (e) => e.erroneousInputOutputIdentifier === ".BudgetAmount",
+            )?.localizedValue
+          }
         />
         <DynamicField
           field={countryField}
           value={formData.CustomerCountry}
           onChange={handleChange}
-          error={errors.find((e) => e.erroneousInputOutputIdentifier === ".CustomerCountry")?.localizedValue}
+          error={
+            errors.find(
+              (e) => e.erroneousInputOutputIdentifier === ".CustomerCountry",
+            )?.localizedValue
+          }
         />
       </div>
     </div>

@@ -91,7 +91,13 @@ export const mapFieldType = (componentType, fieldMetadata = {}) => {
     return typeMap[metadataTypeLower];
   }
 
-  return typeMap[typeLower] || { inputType: "text", category: "input", isNumeric: false };
+  return (
+    typeMap[typeLower] || {
+      inputType: "text",
+      category: "input",
+      isNumeric: false,
+    }
+  );
 };
 
 /**
@@ -199,7 +205,9 @@ export const extractFieldsFromView = (viewConfig, uiResources) => {
         if (fieldName === "pyID" || processed.has(fieldName)) return;
 
         // Skip parent fields if child is already processed
-        const parentField = fieldName.includes(".") ? fieldName.split(".")[0] : null;
+        const parentField = fieldName.includes(".")
+          ? fieldName.split(".")[0]
+          : null;
         if (parentField && processed.has(parentField)) return;
 
         processed.add(fieldName);
@@ -244,7 +252,10 @@ export const validateField = (value, field) => {
   const errors = [];
 
   // Required validation
-  if (field.required && (value === undefined || value === "" || value === null)) {
+  if (
+    field.required &&
+    (value === undefined || value === "" || value === null)
+  ) {
     errors.push(`${field.label} is required`);
   }
 
@@ -301,7 +312,7 @@ export const DynamicField = ({
 
       onChange(field.name, newValue);
     },
-    [field, onChange]
+    [field, onChange],
   );
 
   const handleBlur = useCallback(() => {
@@ -313,7 +324,7 @@ export const DynamicField = ({
     (e) => {
       onChange(field.name, e.target.checked);
     },
-    [field, onChange]
+    [field, onChange],
   );
 
   const displayValue = value ?? "";
@@ -336,7 +347,9 @@ export const DynamicField = ({
             disabled={field.readOnly}
             required={field.required}
           >
-            <option value="">{field.placeholder || `Select ${field.label}...`}</option>
+            <option value="">
+              {field.placeholder || `Select ${field.label}...`}
+            </option>
             {field.options.map((opt) => (
               <option key={opt.key} value={opt.key}>
                 {opt.value}
@@ -411,7 +424,9 @@ export const DynamicField = ({
             onChange={handleChange}
             onBlur={handleBlur}
             readOnly={field.readOnly}
-            placeholder={field.mask ? getMaskPlaceholder(field.mask) : field.placeholder}
+            placeholder={
+              field.mask ? getMaskPlaceholder(field.mask) : field.placeholder
+            }
             maxLength={field.mask ? field.mask.length : field.maxLength}
             required={field.required}
             className={field.readOnly ? "read-only-input" : ""}
@@ -505,7 +520,7 @@ export const DynamicForm = ({
 
   const getFieldError = (fieldName) => {
     const error = errors.find(
-      (e) => e.erroneousInputOutputIdentifier === `.${fieldName}`
+      (e) => e.erroneousInputOutputIdentifier === `.${fieldName}`,
     );
     return error?.localizedValue || error?.message;
   };
@@ -545,9 +560,7 @@ export const DynamicForm = ({
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      <div className="dynamic-form-grid">
-        {fields.map(renderField)}
-      </div>
+      <div className="dynamic-form-grid">{fields.map(renderField)}</div>
 
       <div className="btn-group">
         {actionButtons.secondary?.map((btn, i) => (
