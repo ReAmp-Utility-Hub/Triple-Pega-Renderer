@@ -535,11 +535,17 @@ export default function PurchaseVehicleDemo({ onBack }) {
   };
 
   const handleRefresh = useCallback(
-    async (fieldName) => {
+    async (fieldName, isAI = false) => {
       if (!assignmentId || !actionId) return;
 
+      const currentPhase = phase;
       try {
-        const url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/actions/${actionId}/refresh?refreshFor=.${fieldName}`;
+        let url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/actions/${actionId}/refresh?refreshFor=.${fieldName}`;
+        if (isAI) {
+          url += "&fillFormWithAI=true";
+          setPhase("LOADING");
+          setLoadingMsg("AI is filling the form...");
+        }
         const editableFields = [];
         uiElements.forEach((el) => {
           if (el.type === "Group") {
@@ -632,9 +638,11 @@ export default function PurchaseVehicleDemo({ onBack }) {
         }
       } catch (err) {
         console.error("Refresh failed:", err);
+      } finally {
+        if (isAI) setPhase(currentPhase);
       }
     },
-    [assignmentId, actionId, token, etag, formData, uiElements],
+    [assignmentId, actionId, token, etag, formData, uiElements, phase],
   );
 
   const renderUIElement = (el) => {
@@ -1086,6 +1094,12 @@ export default function PurchaseVehicleDemo({ onBack }) {
                     onClick={() => {
                       if (btn.actionID === "save") {
                         saveForLater();
+                      } else if (btn.actionID === "fillFormWithAI") {
+                        const firstField =
+                          uiElements.find((el) => el.name) ||
+                          uiElements.find((el) => el.type === "Group")
+                            ?.children?.[0];
+                        handleRefresh(firstField?.name || "pyID", true);
                       } else {
                         alert(`Action: ${btn.name}`);
                       }
