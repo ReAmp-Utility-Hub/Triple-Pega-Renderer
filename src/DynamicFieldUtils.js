@@ -204,8 +204,7 @@ export const extractFieldsFromView = (viewConfig, uiResources) => {
 
       // Handle regular form fields
       if (
-        (child.config?.value ||
-          child.type === "Pega_Extensions_BannerInput") &&
+        (child.config?.value || child.type === "Pega_Extensions_BannerInput") &&
         child.type !== "reference"
       ) {
         const fieldName = child.config?.value

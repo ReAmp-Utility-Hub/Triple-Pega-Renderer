@@ -6,10 +6,7 @@
  */
 
 import { useState, useCallback } from "react";
-import {
-  DynamicForm,
-  DynamicField,
-} from "./DynamicFieldRenderer";
+import { DynamicForm, DynamicField } from "./DynamicFieldRenderer";
 import {
   extractFieldsFromView,
   getFieldMetadata,
