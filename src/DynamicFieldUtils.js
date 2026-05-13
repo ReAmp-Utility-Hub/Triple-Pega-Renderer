@@ -180,6 +180,7 @@ export const extractFieldsFromView = (viewConfig, uiResources) => {
                 maxLength: metadata.maxLength,
                 options: metadata.datasource?.records || [],
                 group: cleanLabel(child.config?.heading || ""),
+                isBanner: groupChild.type === "Pega_Extensions_BannerInput",
               });
             }
           }
@@ -202,8 +203,14 @@ export const extractFieldsFromView = (viewConfig, uiResources) => {
       }
 
       // Handle regular form fields
-      if (child.config?.value && child.type !== "reference") {
-        const fieldName = extractFieldName(child.config.value);
+      if (
+        (child.config?.value ||
+          child.type === "Pega_Extensions_BannerInput") &&
+        child.type !== "reference"
+      ) {
+        const fieldName = child.config?.value
+          ? extractFieldName(child.config.value)
+          : `Banner_${Math.random().toString(36).substring(7)}`;
 
         if (fieldName === "pyID" || processed.has(fieldName)) return;
 
@@ -240,6 +247,7 @@ export const extractFieldsFromView = (viewConfig, uiResources) => {
           options: metadata.datasource?.records || [],
           validateAs: metadata.validateAs,
           group: parentGroup,
+          isBanner: child.type === "Pega_Extensions_BannerInput",
         });
       }
     });

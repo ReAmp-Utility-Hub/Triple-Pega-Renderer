@@ -737,10 +737,9 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
     if (el.type === "Pega_Extensions_BannerInput") {
       const isAligned = formData.BudgetAlligned ?? contentData.BudgetAlligned;
-      const elVariant = el.config?.variant || "info";
-
-      if (isAligned && elVariant !== "info") return null;
-      if (!isAligned && elVariant !== "warn") return null;
+      
+      // Determine variant dynamically based on alignment status
+      const elVariant = isAligned === false ? "warn" : (el.config?.variant || "info");
 
       return (
         <div
