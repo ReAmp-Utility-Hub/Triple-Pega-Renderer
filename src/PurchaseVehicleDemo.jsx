@@ -561,6 +561,35 @@ export default function PurchaseVehicleDemo({ onBack }) {
     async (fieldName, isAI = false) => {
       if (!assignmentId || !actionId) return;
 
+      let targetField = null;
+      for (const el of uiElements) {
+        if (el.type === "Group") {
+          const found = el.children.find((c) => c.name === fieldName);
+          if (found) targetField = found;
+        } else if (el.name === fieldName) {
+          targetField = el;
+        }
+      }
+
+      if (targetField && !isAI && !targetField.readOnly) {
+        const errs = validateField(formData[fieldName], targetField);
+        if (errs.length > 0) {
+          setFormErrors((prev) => {
+            const others = prev.filter(
+              (e) => e.erroneousInputOutputIdentifier !== `.${fieldName}`,
+            );
+            return [
+              ...others,
+              {
+                erroneousInputOutputIdentifier: `.${fieldName}`,
+                localizedValue: errs[0],
+              },
+            ];
+          });
+          return;
+        }
+      }
+
       const currentPhase = phase;
       try {
         let url = `${API_BASE}/assignments/${encodeURIComponent(assignmentId)}/actions/${actionId}/refresh?refreshFor=.${fieldName}`;
@@ -737,9 +766,10 @@ export default function PurchaseVehicleDemo({ onBack }) {
 
     if (el.type === "Pega_Extensions_BannerInput") {
       const isAligned = formData.BudgetAlligned ?? contentData.BudgetAlligned;
-      
+
       // Determine variant dynamically based on alignment status
-      const elVariant = isAligned === false ? "warn" : (el.config?.variant || "info");
+      const elVariant =
+        isAligned === false ? "warn" : el.config?.variant || "info";
 
       return (
         <div
