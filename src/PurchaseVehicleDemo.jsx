@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { DynamicField, extractFieldsFromView } from "./DynamicFieldRenderer";
+import { DynamicField } from "./DynamicFieldRenderer";
+import { extractFieldsFromView, validateField } from "./DynamicFieldUtils";
 
 const TOKEN_URL = import.meta.env.VITE_TOKEN_URL;
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -409,16 +410,38 @@ export default function PurchaseVehicleDemo({ onBack }) {
       }
       payload = { SelectedVehicleID: selectedVehicleId };
     } else {
+      const localErrors = [];
+
+      const checkField = (field) => {
+        if (!field.readOnly && !field.isBanner) {
+          const val = formData[field.name];
+          const errs = validateField(val, field);
+          if (errs.length > 0) {
+            localErrors.push({
+              erroneousInputOutputIdentifier: `.${field.name}`,
+              localizedValue: errs[0],
+            });
+          }
+        }
+      };
+
       const editableFields = [];
       uiElements.forEach((el) => {
         if (el.type === "Group") {
           el.children.forEach((c) => {
             if (!c.readOnly) editableFields.push(c.name);
+            checkField(c);
           });
-        } else if (!el.readOnly && !el.isBanner) {
-          editableFields.push(el.name);
+        } else {
+          if (!el.readOnly && !el.isBanner) editableFields.push(el.name);
+          checkField(el);
         }
       });
+
+      if (localErrors.length > 0) {
+        setFormErrors(localErrors);
+        return; // Stop submission if there are validation errors
+      }
 
       const unflatten = (data) => {
         const result = {};
@@ -713,7 +736,7 @@ export default function PurchaseVehicleDemo({ onBack }) {
     }
 
     if (el.type === "Pega_Extensions_BannerInput") {
-      const isAligned = formData.BudgetAligned ?? contentData.BudgetAligned;
+      const isAligned = formData.BudgetAlligned ?? contentData.BudgetAlligned;
       const elVariant = el.config?.variant || "info";
 
       if (isAligned && elVariant !== "info") return null;
