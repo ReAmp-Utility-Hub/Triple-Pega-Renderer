@@ -8,14 +8,16 @@
 import { useState, useCallback } from "react";
 import {
   DynamicForm,
+  DynamicField,
+} from "./DynamicFieldRenderer";
+import {
   extractFieldsFromView,
   getFieldMetadata,
   getFieldConfig,
   applyMask,
   validateField,
   cleanLabel,
-  DynamicField,
-} from "./DynamicFieldRenderer";
+} from "./DynamicFieldUtils";
 
 // Example component using the dynamic form renderer
 export function PegaFormExample() {
